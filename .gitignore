@@ -1,0 +1,21 @@
+# Secrets and local env
+.env
+.env.*
+.venv/
+
+# Python and tool caches
+__pycache__/
+*.py[cod]
+.ruff_cache/
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+dist/
+build/
+*.egg-info/
+
+# Editor and OS metadata
+.vscode/
+.idea/
+.DS_Store

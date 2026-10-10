@@ -1,0 +1,82 @@
+{
+  "operator": "Halcyon Tankers",
+  "vessels": [
+    {
+      "name": "KESTREL BAY",
+      "imo": "9314820",
+      "call_sign": "9HKB4",
+      "type": "MR product tanker",
+      "dwt": 49950,
+      "status": "on_voyage",
+      "current_voyage": {
+        "voyage_no": "KB-2603",
+        "charterer": "Calderon Energy Trading SA",
+        "itinerary": [
+          {
+            "seq": 1,
+            "port": "Antwerp",
+            "country": "BE",
+            "function": "load",
+            "utc_offset": "+01:00",
+            "planned_arrival": "2026-01-30",
+            "planned_departure": "2026-02-01"
+          },
+          {
+            "seq": 2,
+            "port": "Gibraltar",
+            "country": "GI",
+            "function": "bunkering",
+            "utc_offset": "+01:00",
+            "planned_arrival": "2026-02-05",
+            "planned_departure": "2026-02-06"
+          },
+          {
+            "seq": 3,
+            "port": "Cotonou",
+            "country": "BJ",
+            "function": "discharge",
+            "utc_offset": "+01:00",
+            "planned_arrival": "2026-02-16",
+            "planned_departure": "2026-02-19"
+          }
+        ]
+      }
+    },
+    {
+      "name": "KESTREL POINT",
+      "imo": "9314832",
+      "call_sign": "9HKP6",
+      "type": "MR product tanker",
+      "dwt": 49950,
+      "status": "drydock",
+      "current_voyage": null
+    },
+    {
+      "name": "ALBA SPIRIT",
+      "imo": "9502764",
+      "call_sign": "V7AS2",
+      "type": "LR1 product tanker",
+      "dwt": 74990,
+      "status": "idle",
+      "current_voyage": null
+    },
+    {
+      "name": "NORTHERN TERN",
+      "imo": "9688154",
+      "call_sign": "V7NT9",
+      "type": "MR product tanker",
+      "dwt": 50100,
+      "status": "idle",
+      "current_voyage": null
+    },
+    {
+      "name": "SILVER HERON",
+      "imo": "9720419",
+      "call_sign": "9HSH3",
+      "type": "Handysize product tanker",
+      "dwt": 37800,
+      "status": "laid_up",
+      "current_voyage": null
+    }
+  ]
+}
