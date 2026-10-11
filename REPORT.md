@@ -48,3 +48,8 @@
     point when files change, for example `demurrage live` or
     `demurrage live path/to/new.eml`. Both modes live in
     `src/demurrage/pipeline.py`.
+
+
+Notes:
+- we don't have enough information to know which voyage is about the email. However, if we would extract the port, I think this could be inferrable.
+- For the moment I will only use the vessel information, however this is for the MVP and actually we would need to know much more and infer the voyage no. Otherwise the context for the next step would be too much.

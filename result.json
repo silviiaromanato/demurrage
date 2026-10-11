@@ -10,36 +10,306 @@
     {
       "source_id": "email_01.eml:8e39c594b82c63e8",
       "subject": "KESTREL BAY / CALDERON - ANTWERP/COTONOU - CLEAN RECAP",
-      "vessel_name": null,
-      "voyage_no": null,
-      "relevance": "uncertain",
+      "vessel_name": "KESTREL BAY",
+      "relevance": "relevant",
       "affects_schedule": false,
       "affects_laytime": false,
       "topics": {
-        "contract": false,
-        "schedule": false,
-        "laytime": false,
-        "position": false,
-        "other": false
+        "contract": "yes",
+        "schedule": "no",
+        "laytime": "no",
+        "position": "no",
+        "other": "no"
       },
-      "reason": "Pending LLM extraction."
+      "reason": "Classified: about a voyage = yes."
     },
     {
       "source_id": "email_02.eml:c1471db05c986c46",
       "subject": "KESTREL BAY - voyage instructions - Antwerp / Cotonou",
-      "vessel_name": null,
-      "voyage_no": null,
-      "relevance": "uncertain",
+      "vessel_name": "KESTREL BAY",
+      "relevance": "relevant",
       "affects_schedule": false,
       "affects_laytime": false,
       "topics": {
-        "contract": false,
-        "schedule": false,
-        "laytime": false,
-        "position": false,
-        "other": false
+        "contract": "no",
+        "schedule": "no",
+        "laytime": "no",
+        "position": "no",
+        "other": "no"
       },
-      "reason": "Pending LLM extraction."
+      "reason": "Classified: about a voyage = yes."
+    },
+    {
+      "source_id": "email_03.eml:59f00e654ed4c572",
+      "subject": "MT KESTREL BAY - ARRIVAL ANTWERP - NOR TENDERED",
+      "vessel_name": "KESTREL BAY",
+      "relevance": "relevant",
+      "affects_schedule": true,
+      "affects_laytime": true,
+      "topics": {
+        "contract": "no",
+        "schedule": "yes",
+        "laytime": "yes",
+        "position": "yes",
+        "other": "no"
+      },
+      "reason": "Classified: about a voyage = yes."
+    },
+    {
+      "source_id": "email_04.eml:a2478b586dce09c9",
+      "subject": "KESTREL POINT - drydock progress report no. 6",
+      "vessel_name": null,
+      "relevance": "not_relevant",
+      "affects_schedule": false,
+      "affects_laytime": false,
+      "topics": {
+        "contract": "no",
+        "schedule": "no",
+        "laytime": "no",
+        "position": "no",
+        "other": "no"
+      },
+      "reason": "Classified: about a voyage = no."
+    },
+    {
+      "source_id": "email_05.eml:2d42748f14683793",
+      "subject": "RE: KESTREL BAY / CALDERON - ANTWERP/COTONOU - ADDENDUM NO.1 - CLEAN",
+      "vessel_name": "KESTREL BAY",
+      "relevance": "relevant",
+      "affects_schedule": false,
+      "affects_laytime": false,
+      "topics": {
+        "contract": "yes",
+        "schedule": "no",
+        "laytime": "no",
+        "position": "no",
+        "other": "no"
+      },
+      "reason": "Classified: about a voyage = yes."
+    },
+    {
+      "source_id": "email_06.eml:898577d89e7e8523",
+      "subject": "MT KESTREL BAY - ANTWERP - STATEMENT OF FACTS (FINAL)",
+      "vessel_name": "KESTREL BAY",
+      "relevance": "relevant",
+      "affects_schedule": true,
+      "affects_laytime": true,
+      "topics": {
+        "contract": "no",
+        "schedule": "yes",
+        "laytime": "yes",
+        "position": "no",
+        "other": "no"
+      },
+      "reason": "Classified: about a voyage = yes."
+    },
+    {
+      "source_id": "email_07.eml:c12a5d4aa43f4b01",
+      "subject": "KESTREL BAY / Antwerp - final disbursement account",
+      "vessel_name": "KESTREL BAY",
+      "relevance": "relevant",
+      "affects_schedule": false,
+      "affects_laytime": false,
+      "topics": {
+        "contract": "no",
+        "schedule": "no",
+        "laytime": "no",
+        "position": "no",
+        "other": "no"
+      },
+      "reason": "Classified: about a voyage = yes."
+    },
+    {
+      "source_id": "email_08.eml:96bd380ab311bdb0",
+      "subject": "KESTREL BAY NOON REPORT 03/02",
+      "vessel_name": "KESTREL BAY",
+      "relevance": "relevant",
+      "affects_schedule": true,
+      "affects_laytime": false,
+      "topics": {
+        "contract": "no",
+        "schedule": "yes",
+        "laytime": "no",
+        "position": "yes",
+        "other": "no"
+      },
+      "reason": "Classified: about a voyage = yes."
+    },
+    {
+      "source_id": "email_09.eml:0d00ae69e001c749",
+      "subject": "MT KESTREL BAY - Gibraltar bunker call - sailing report",
+      "vessel_name": "KESTREL BAY",
+      "relevance": "relevant",
+      "affects_schedule": true,
+      "affects_laytime": false,
+      "topics": {
+        "contract": "no",
+        "schedule": "yes",
+        "laytime": "no",
+        "position": "yes",
+        "other": "no"
+      },
+      "reason": "Classified: about a voyage = yes."
+    },
+    {
+      "source_id": "email_10.eml:c0a14078c2fe2284",
+      "subject": "KESTREL BAY - Cotonou berthing prospects",
+      "vessel_name": "KESTREL BAY",
+      "relevance": "relevant",
+      "affects_schedule": true,
+      "affects_laytime": true,
+      "topics": {
+        "contract": "no",
+        "schedule": "yes",
+        "laytime": "yes",
+        "position": "no",
+        "other": "no"
+      },
+      "reason": "Classified: about a voyage = yes."
+    },
+    {
+      "source_id": "email_11.eml:7b5b9591f32256ef",
+      "subject": "KESTREL BAY - ETA COTONOU",
+      "vessel_name": "KESTREL BAY",
+      "relevance": "relevant",
+      "affects_schedule": true,
+      "affects_laytime": false,
+      "topics": {
+        "contract": "no",
+        "schedule": "yes",
+        "laytime": "no",
+        "position": "yes",
+        "other": "no"
+      },
+      "reason": "Classified: about a voyage = yes."
+    },
+    {
+      "source_id": "email_12.eml:eecced659a5a149b",
+      "subject": "COTONOU - OIL JETTY LINE-UP 13/02/2026",
+      "vessel_name": "KESTREL BAY",
+      "relevance": "relevant",
+      "affects_schedule": true,
+      "affects_laytime": true,
+      "topics": {
+        "contract": "no",
+        "schedule": "yes",
+        "laytime": "yes",
+        "position": "no",
+        "other": "no"
+      },
+      "reason": "Classified: about a voyage = yes."
+    },
+    {
+      "source_id": "email_13.eml:2855b9516a189a7e",
+      "subject": "FW: KESTREL BAY NOON REPORT 03/02",
+      "vessel_name": "KESTREL BAY",
+      "relevance": "relevant",
+      "affects_schedule": true,
+      "affects_laytime": false,
+      "topics": {
+        "contract": "no",
+        "schedule": "yes",
+        "laytime": "no",
+        "position": "yes",
+        "other": "no"
+      },
+      "reason": "Classified: about a voyage = yes."
+    },
+    {
+      "source_id": "email_14.eml:240c2c5257899715",
+      "subject": "NOR TENDERED - COTONOU",
+      "vessel_name": null,
+      "relevance": "not_relevant",
+      "affects_schedule": false,
+      "affects_laytime": false,
+      "topics": {
+        "contract": "no",
+        "schedule": "no",
+        "laytime": "no",
+        "position": "no",
+        "other": "no"
+      },
+      "reason": "Classified: about a voyage = no."
+    },
+    {
+      "source_id": "email_15.eml:414849b3bd95d14f",
+      "subject": "KESTREL BAY - ARRIVAL COTONOU",
+      "vessel_name": "KESTREL BAY",
+      "relevance": "relevant",
+      "affects_schedule": true,
+      "affects_laytime": true,
+      "topics": {
+        "contract": "no",
+        "schedule": "yes",
+        "laytime": "yes",
+        "position": "yes",
+        "other": "no"
+      },
+      "reason": "Classified: about a voyage = yes."
+    },
+    {
+      "source_id": "email_16.eml:958044de2a4ddb21",
+      "subject": "RE: KESTREL BAY - ARRIVAL COTONOU",
+      "vessel_name": "KESTREL BAY",
+      "relevance": "relevant",
+      "affects_schedule": true,
+      "affects_laytime": true,
+      "topics": {
+        "contract": "no",
+        "schedule": "yes",
+        "laytime": "yes",
+        "position": "yes",
+        "other": "no"
+      },
+      "reason": "Classified: about a voyage = yes."
+    },
+    {
+      "source_id": "email_17.eml:b35b960632d8f2fc",
+      "subject": "MT KESTREL BAY - COTONOU - INTERIM SOF (up to 19/02 08:00)",
+      "vessel_name": "KESTREL BAY",
+      "relevance": "relevant",
+      "affects_schedule": true,
+      "affects_laytime": true,
+      "topics": {
+        "contract": "no",
+        "schedule": "yes",
+        "laytime": "yes",
+        "position": "yes",
+        "other": "no"
+      },
+      "reason": "Classified: about a voyage = yes."
+    },
+    {
+      "source_id": "email_18.eml:603c14402a80dc62",
+      "subject": "KESTREL BAY - DEPARTURE COTONOU",
+      "vessel_name": "KESTREL BAY",
+      "relevance": "relevant",
+      "affects_schedule": true,
+      "affects_laytime": true,
+      "topics": {
+        "contract": "no",
+        "schedule": "yes",
+        "laytime": "yes",
+        "position": "yes",
+        "other": "no"
+      },
+      "reason": "Classified: about a voyage = yes."
+    },
+    {
+      "source_id": "email_19.eml:f426b565e6e02ee0",
+      "subject": "MT KESTREL BAY - COTONOU - STATEMENT OF FACTS (FINAL)",
+      "vessel_name": "KESTREL BAY",
+      "relevance": "relevant",
+      "affects_schedule": true,
+      "affects_laytime": true,
+      "topics": {
+        "contract": "no",
+        "schedule": "yes",
+        "laytime": "yes",
+        "position": "no",
+        "other": "no"
+      },
+      "reason": "Classified: about a voyage = yes."
     }
   ],
   "contract": {
@@ -131,22 +401,6 @@
     "status": "incomplete",
     "evidence": []
   },
-  "review_items": [
-    {
-      "severity": "material",
-      "code": "EXTRACTION_PENDING",
-      "message": "One or more emails have pending LLM extraction; contract, laytime, and demurrage fields are not populated.",
-      "affected_fields": [
-        "contract",
-        "port_visits",
-        "laytime_by_cargo_port",
-        "demurrage"
-      ],
-      "related_source_ids": [
-        "email_01.eml:8e39c594b82c63e8",
-        "email_02.eml:c1471db05c986c46"
-      ]
-    }
-  ],
+  "review_items": [],
   "evidence_index": []
 }

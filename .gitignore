@@ -3,6 +3,9 @@
 .env.*
 .venv/
 
+# Local Jev decision cache (debug / offline replay)
+.jev_cache/
+
 # Python and tool caches
 __pycache__/
 *.py[cod]
@@ -14,6 +17,9 @@ htmlcov/
 dist/
 build/
 *.egg-info/
+
+# Accidental extraction log copies
+extractions *.jsonl
 
 # Editor and OS metadata
 .vscode/

@@ -8,15 +8,19 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validator
 
 Relevance = Literal["relevant", "not_relevant", "uncertain"]
 AnswerStatus = Literal["final", "provisional", "incomplete"]
 PortVisitStatus = Literal["final", "provisional", "missing", "conflicted"]
-FactStatus = Literal["actual", "estimated", "interim", "final", "corrected", "unknown"]
 Seconds = int | None
 
+TopicFlag = Literal["yes", "no", "uncertain"]
+
 TOPICS = ("contract", "schedule", "laytime", "position", "other")
+UNKNOWN_VESSEL = "unknown"  # legacy Jev/cache label; prefer VESSEL_UNCERTAIN
+VESSEL_UNCERTAIN = "uncertain"
+NOT_OUR_VESSEL = "not_our_vessel"
 MONEY_TOLERANCE = 0.01
 
 
@@ -43,31 +47,56 @@ class ParsedEmail(Schema):
     parse_warnings: list[str] = []
 
 
-# --- Stage 2: extract (LLM, one call per email) ---
+# --- Stage 2: classify (LLM, three calls per email) ---
 
 
-class ExtractedFact(Schema):
-    fact_id: str
-    fact_type: str
-    value: Any
-    unit: str | None = None
-    timezone_label: str | None = None
-    status: FactStatus
-    quote: str = Field(min_length=1)
-    source_id: str
-
-    @model_validator(mode="after")
-    def _fact_id_belongs_to_source(self) -> ExtractedFact:
-        if not self.fact_id.startswith(f"{self.source_id}#"):
-            raise ValueError(f"fact_id {self.fact_id!r} must start with source_id#")
-        return self
+class ChoiceResult(Schema):
+    choice: str
+    confidence: float | None = None
+    probabilities: dict[str, float] = {}
 
 
-class PortEventFact(ExtractedFact):
-    event_type: str
-    port: str | None = None
-    raw_time_expression: str | None = None
-    is_actual: bool | None = None
+class VoyageCheck(Schema):
+    """Call 1: is this email about a vessel voyage at all?"""
+
+    choice: Literal["yes", "no", "uncertain"]
+    confidence: float | None = None
+    probabilities: dict[str, float] = {}
+
+    @classmethod
+    def from_jev(cls, answer: dict[str, Any]) -> VoyageCheck:
+        return cls(
+            choice=answer["choice"],
+            confidence=answer.get("confidence"),
+            probabilities=answer.get("probabilities") or {},
+        )
+
+
+class VesselCheck(Schema):
+    """Call 2: which fleet vessel (`unknown` if not stated)."""
+
+    choice: str
+    confidence: float | None = None
+    probabilities: dict[str, float] = {}
+
+    @classmethod
+    def from_jev(cls, answer: dict[str, Any]) -> VesselCheck:
+        return cls(
+            choice=answer["choice"],
+            confidence=answer.get("confidence"),
+            probabilities=answer.get("probabilities") or {},
+        )
+
+
+class TopicCheck(Schema):
+    """Call 3: which topics the email discusses."""
+
+    contract: TopicFlag
+    schedule: TopicFlag
+    laytime: TopicFlag
+    position: TopicFlag
+    other: TopicFlag
+    confidence: dict[str, float] = {}
 
 
 class EmailReview(Schema):
@@ -91,6 +120,8 @@ class EmailReview(Schema):
 
 
 class EmailExtraction(Schema):
+    model_config = ConfigDict(extra="ignore")
+
     source_id: str
     filename: str
     content_hash: str
@@ -98,37 +129,40 @@ class EmailExtraction(Schema):
     subject: str | None
     sent_at: str | None
     vessel_name: str | None = None
-    voyage_no: str | None = None
     voyage_about: Literal["yes", "no", "uncertain"] = "uncertain"
     relevance: Relevance = "uncertain"
-    affects_schedule: bool = False
-    affects_laytime: bool = False
-    topics: dict[str, bool] = Field(
-        default_factory=lambda: dict.fromkeys(TOPICS, False)
+    topics: dict[str, TopicFlag] = Field(
+        default_factory=lambda: dict.fromkeys(TOPICS, "uncertain")
     )
-    contract_facts: list[ExtractedFact] = []
-    port_events: list[PortEventFact] = []
-    stoppages: list[ExtractedFact] = []
-    position_facts: list[ExtractedFact] = []
     warnings: list[str] = []
     extraction_status: Literal["pending", "complete"] = "pending"
     review: EmailReview | None = None
+    answered_reviews: list[EmailReview] = []
 
-    def all_facts(self) -> list[ExtractedFact]:
-        return [
-            *self.contract_facts,
-            *self.port_events,
-            *self.stoppages,
-            *self.position_facts,
-        ]
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def affects_schedule(self) -> bool:
+        return self.topics.get("schedule", "no") != "no"
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def affects_laytime(self) -> bool:
+        return self.topics.get("laytime", "no") != "no"
+
+    @model_validator(mode="before")
+    @classmethod
+    def _legacy_topic_flags(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+        topics = data.get("topics")
+        if isinstance(topics, dict):
+            data["topics"] = {
+                k: ("uncertain" if v == "unknown" else v) for k, v in topics.items()
+            }
+        return data
 
     @model_validator(mode="after")
-    def _facts_are_from_this_email(self) -> EmailExtraction:
-        ids = [f.fact_id for f in self.all_facts()]
-        if any(f.source_id != self.source_id for f in self.all_facts()):
-            raise ValueError("every fact must carry this email's source_id")
-        if len(ids) != len(set(ids)):
-            raise ValueError("fact_ids must be unique within an email")
+    def _topics_are_complete(self) -> EmailExtraction:
         if set(self.topics) != set(TOPICS):
             raise ValueError(f"topics must have exactly the keys {TOPICS}")
         return self
@@ -157,11 +191,10 @@ class EmailAssessment(Schema):
     source_id: str
     subject: str | None
     vessel_name: str | None
-    voyage_no: str | None
     relevance: Relevance
     affects_schedule: bool
     affects_laytime: bool
-    topics: dict[str, bool]
+    topics: dict[str, TopicFlag]
     reason: str
 
 

@@ -134,41 +134,26 @@ The email sent time is not an operational event time.
 Use one structured call with logical gates:
 
 1. Is this about a voyage: `yes`, `no`, or `uncertain`?
-2. Which fleet vessel and voyage?
+2. Which fleet vessel?
 3. Does it concern contract terms, schedule/port calls, laytime, position, or
    another topic?
-4. For each applicable topic, return typed facts with exact source quotations.
+
+Typed facts with quotes are a later resolver step, not part of `EmailExtraction`.
 
 ```text
 EmailExtraction
 ├── source_id and message metadata
-├── vessel and voyage assessment
-├── relevance: relevant / not relevant / uncertain
-├── affects_schedule
-├── affects_laytime
-├── topic flags
-├── contract_facts[]
-├── port_events[]
-├── stoppages[]
-├── position_facts[]
+├── vessel_name
+├── voyage_about: yes / no / uncertain
+├── relevance
+├── affects_schedule, affects_laytime
+├── topics: yes / no / unknown per topic
+├── review / answered_reviews
 └── warnings[]
 ```
 
-Each extracted fact includes:
-
-- a fact ID, unique within its email (`<source_id>#<n>`), so the resolver can
-  cite it;
-- a typed value;
-- its unit or time-zone label where applicable;
-- actual, estimated, interim, final, corrected, or unknown status;
-- the exact supporting quote;
-- source ID.
-
-A port event additionally includes the event type, port, raw time expression,
-and whether the value is actual or estimated.
-
-The model extracts what an email says. It does not calculate durations, choose
-between conflicting emails, or invent missing values.
+Classification does not calculate durations, choose between conflicting emails,
+or invent missing values. Typed facts belong to the resolver.
 
 ## 5. Build the voyage answer: resolver core, then Python finish
 
@@ -561,7 +546,8 @@ Accept a model or prompt change only when:
 8. Add tests and record evaluation results.
 
 Steps 1, 2, 6 and 7 are in place, with a placeholder LLM boundary (`llm.py`).
-Steps 3 and 5 need only `llm.call_model` implemented.
+Classification (step 3) uses Jev choice questions on OpenRouter. The resolver
+(step 5) still needs a generative model.
 
 ## 12. Deferred work
 

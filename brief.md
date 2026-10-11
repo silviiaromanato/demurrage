@@ -24,4 +24,4 @@
 - Amount owed: — (incomplete)
 
 ## Review
-- [material] EXTRACTION_PENDING: One or more emails have pending LLM extraction; contract, laytime, and demurrage fields are not populated.
+None.

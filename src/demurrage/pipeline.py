@@ -10,8 +10,21 @@ from typing import Any
 
 from pydantic import ValidationError
 
-from demurrage.answer import build_voyage_answer, find_active_voyage, render_brief
-from demurrage.emails import extract, parse_eml_file, review_for, source_id_for
+from demurrage.answer import (
+    build_voyage_answer,
+    extractions_for_active_voyage,
+    finalize_extraction,
+    find_active_voyage,
+    render_brief,
+)
+from demurrage.emails import (
+    advance_extraction,
+    extract,
+    parse_eml_file,
+    replay_reviews,
+    review_for,
+    source_id_for,
+)
 from demurrage.models import (
     ContractTerms,
     EmailExtraction,
@@ -64,9 +77,12 @@ def write_outputs() -> VoyageAnswer:
     fleet = load_fleet()
     extractions = read_extractions()
     active = find_active_voyage(fleet)
+    voyage_extractions = extractions_for_active_voyage(extractions, fleet)
     if active:
-        resolved = resolve(active[1], extractions)
-        require("resolve", validate_resolved(resolved, active[1], extractions))
+        resolved = resolve(active[1], voyage_extractions)
+        require(
+            "resolve", validate_resolved(resolved, active[1], voyage_extractions)
+        )
     else:
         resolved = ResolvedVoyageCore(
             contract=ContractTerms(status="missing"),
@@ -81,21 +97,22 @@ def write_outputs() -> VoyageAnswer:
 
 
 def ingest(
-    path: Path, known: set[str], prior_answers: dict[str, EmailReview]
+    path: Path, known: set[str], prior_answers: dict[str, list[EmailReview]]
 ) -> EmailExtraction | None:
     """Parse, extract, append and rebuild for one email; skip if already recorded."""
     source_id = source_id_for(path)
     if source_id in known:
         return None
     parsed = parse_eml_file(path)
-    extraction = extract(parsed)
+    fleet = load_fleet()
+    extraction = extract(parsed, fleet)
     require(f"extract {path.name}", validate_extraction(extraction, parsed))
-    vessels = [v["name"] for v in load_fleet().get("vessels", [])]
-    review = review_for(extraction, vessels)
-    prior = prior_answers.get(source_id)
-    if review and prior and prior.code == review.code:
-        review = prior
-    extraction = extraction.model_copy(update={"review": review})
+    priors = prior_answers.get(source_id, [])
+    extraction = replay_reviews(extraction, priors, fleet)
+    extraction = finalize_extraction(extraction, fleet)
+    extraction = extraction.model_copy(
+        update={"answered_reviews": priors, "review": review_for(extraction, fleet)}
+    )
     with EXTRACTIONS_PATH.open("a", encoding="utf-8") as f:
         f.write(_line(extraction))
     known.add(source_id)
@@ -105,7 +122,7 @@ def ingest(
 
 def run_live(
     email_paths: list[Path] | None = None,
-    prior_answers: dict[str, EmailReview] | None = None,
+    prior_answers: dict[str, list[EmailReview]] | None = None,
 ) -> int:
     """Ingest emails in order, stopping at the first one that needs a human answer."""
     recorded = read_extractions()
@@ -119,6 +136,8 @@ def run_live(
         if extraction is None:
             continue
         added += 1
+        if extraction.extraction_status == "pending" and extraction.warnings:
+            print(f"live: {extraction.filename}: {extraction.warnings[-1]}")
         if extraction.review and extraction.review.status == "open":
             print(
                 f"live: paused on {extraction.filename}: {extraction.review.prompt} "
@@ -132,11 +151,7 @@ def run_live(
 
 def run_batch() -> None:
     """Rebuild from scratch, reusing human answers already given for the same email."""
-    prior_answers = {
-        e.source_id: e.review
-        for e in read_extractions()
-        if e.review and e.review.status == "answered"
-    }
+    prior_answers = {e.source_id: e.answered_reviews for e in read_extractions()}
     EXTRACTIONS_PATH.unlink(missing_ok=True)
     run_live(prior_answers=prior_answers)
 
@@ -163,7 +178,13 @@ def run_answer(email: str, answer: str) -> None:
             "answered_at": datetime.now(UTC).isoformat(),
         }
     )
-    extractions[i] = extractions[i].model_copy(update={"review": answered})
+    fleet = load_fleet()
+    extractions[i] = advance_extraction(
+        extractions[i],
+        answered,
+        fleet,
+        [*extractions[i].answered_reviews, answered],
+    )
     write_extractions(extractions)
     write_outputs()
     print(f"answer: recorded for {extractions[i].filename}; resuming")
