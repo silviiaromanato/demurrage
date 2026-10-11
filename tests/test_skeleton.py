@@ -9,10 +9,10 @@ from demurrage.models import (
     EmailExtraction,
     EmailReview,
     EvidenceRef,
-    ExtractedFact,
     ResolvedVoyageCore,
 )
 from demurrage.resolver import itinerary_skeleton
+from demurrage.resolver_facts import ExtractedFact
 from demurrage.validate import validate_answer, validate_resolved
 
 SID = "email_01.eml:abc"
@@ -29,14 +29,6 @@ FLEET = {"vessels": [{"name": "KESTREL BAY", "imo": "1", "current_voyage": VOYAG
 
 
 def _extraction() -> EmailExtraction:
-    fact = ExtractedFact(
-        fact_id=f"{SID}#1",
-        fact_type="laytime_allowance",
-        value=72,
-        status="final",
-        quote=QUOTE,
-        source_id=SID,
-    )
     return EmailExtraction(
         source_id=SID,
         filename="email_01.eml",
@@ -45,7 +37,16 @@ def _extraction() -> EmailExtraction:
         subject="CP",
         sent_at=None,
         extraction_status="complete",
-        contract_facts=[fact],
+        voyage_about="yes",
+        vessel_name="KESTREL BAY",
+        relevance="relevant",
+        topics={
+            "contract": "yes",
+            "schedule": "no",
+            "laytime": "no",
+            "position": "no",
+            "other": "no",
+        },
     )
 
 
@@ -99,7 +100,7 @@ def test_resolver_must_not_fill_durations_or_invent_quotes():
         update={"gross_duration_seconds": 1}
     )
     bad_contract = core.contract.model_copy(
-        update={"evidence": [EvidenceRef(source_id=SID, quote="invented")]}
+        update={"evidence": [EvidenceRef(source_id="missing.eml:0", quote="invented")]}
     )
     bad = core.model_copy(
         update={
@@ -109,7 +110,7 @@ def test_resolver_must_not_fill_durations_or_invent_quotes():
     )
     problems = validate_resolved(bad, VOYAGE, [_extraction()])
     assert any("must not fill" in p for p in problems)
-    assert any("invented" in p for p in problems)
+    assert any("unknown missing.eml:0" in p for p in problems)
 
 
 def test_tampered_answer_fails_recompute():

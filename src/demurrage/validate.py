@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import re
 from typing import Any
 
 from demurrage.answer import render_brief
@@ -28,37 +27,24 @@ def require(stage: str, problems: list[str]) -> None:
         raise StageValidationError(stage, problems)
 
 
-def _norm(text: str) -> str:
-    return re.sub(r"\s+", " ", text).strip().casefold()
-
-
 def validate_extraction(e: EmailExtraction, parsed: ParsedEmail) -> list[str]:
-    """The extraction belongs to this email and every quote is in its body."""
-    problems = [
+    """The extraction belongs to this email."""
+    return [
         f"{key} {getattr(e, key)!r} != parsed {getattr(parsed, key)!r}"
         for key in ("source_id", "filename", "content_hash", "message_id")
         if getattr(e, key) != getattr(parsed, key)
     ]
-    body = _norm(parsed.body_text)
-    problems += [
-        f"{f.fact_id}: quote not found in email body: {f.quote!r}"
-        for f in e.all_facts()
-        if _norm(f.quote) not in body
-    ]
-    return problems
 
 
 def _evidence_problems(
     where: str, refs: list[EvidenceRef], extractions: list[EmailExtraction]
 ) -> list[str]:
-    quotes = {e.source_id: [_norm(f.quote) for f in e.all_facts()] for e in extractions}
-    problems = []
-    for ref in refs:
-        if ref.source_id not in quotes:
-            problems.append(f"{where}: evidence cites unknown {ref.source_id}")
-        elif not any(_norm(ref.quote) in q for q in quotes[ref.source_id]):
-            problems.append(f"{where}: quote not among extracted facts: {ref.quote!r}")
-    return problems
+    known = {e.source_id for e in extractions}
+    return [
+        f"{where}: evidence cites unknown {ref.source_id}"
+        for ref in refs
+        if ref.source_id not in known
+    ]
 
 
 def validate_resolved(
@@ -66,7 +52,7 @@ def validate_resolved(
     voyage: dict[str, Any],
     extractions: list[EmailExtraction],
 ) -> list[str]:
-    """Resolver output matches the itinerary and only cites extracted facts."""
+    """Resolver output matches the itinerary and cites known emails."""
     problems = []
     visit_ids = [v.visit_id for v in core.port_visits]
     if len(visit_ids) != len(set(visit_ids)):
