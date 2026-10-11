@@ -2,23 +2,34 @@
 
 Each model validates its own internal consistency on construction and on load
 from JSON. Checks that need data from another stage live in `validate.py`.
+
+The resolver models double as the LLM's JSON schema, so field descriptions
+follow DOMAIN.md. Fields Python fills after the resolver are typed `Computed`
+and left out of that schema.
 """
 
 from __future__ import annotations
 
-from typing import Any, Literal
+from datetime import datetime
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validator
+from pydantic.json_schema import SkipJsonSchema
 
 Relevance = Literal["relevant", "not_relevant", "uncertain"]
 AnswerStatus = Literal["final", "provisional", "incomplete"]
+ContractStatus = Literal["resolved", "missing", "conflicted", "provisional"]
 PortVisitStatus = Literal["final", "provisional", "missing", "conflicted"]
+StoppageCause = Literal[
+    "vessel", "terminal", "berth_waiting", "shifting", "weather", "other"
+]
 Seconds = int | None
+Computed = Annotated[Seconds, SkipJsonSchema(), Field(ge=0)]
+ComputedText = Annotated[str | None, SkipJsonSchema()]
 
 TopicFlag = Literal["yes", "no", "uncertain"]
 
 TOPICS = ("contract", "schedule", "laytime", "position", "other")
-UNKNOWN_VESSEL = "unknown"  # legacy Jev/cache label; prefer VESSEL_UNCERTAIN
 VESSEL_UNCERTAIN = "uncertain"
 NOT_OUR_VESSEL = "not_our_vessel"
 MONEY_TOLERANCE = 0.01
@@ -130,7 +141,6 @@ class EmailExtraction(Schema):
     sent_at: str | None
     vessel_name: str | None = None
     voyage_about: Literal["yes", "no", "uncertain"] = "uncertain"
-    relevance: Relevance = "uncertain"
     topics: dict[str, TopicFlag] = Field(
         default_factory=lambda: dict.fromkeys(TOPICS, "uncertain")
     )
@@ -149,18 +159,6 @@ class EmailExtraction(Schema):
     def affects_laytime(self) -> bool:
         return self.topics.get("laytime", "no") != "no"
 
-    @model_validator(mode="before")
-    @classmethod
-    def _legacy_topic_flags(cls, data: Any) -> Any:
-        if not isinstance(data, dict):
-            return data
-        topics = data.get("topics")
-        if isinstance(topics, dict):
-            data["topics"] = {
-                k: ("uncertain" if v == "unknown" else v) for k, v in topics.items()
-            }
-        return data
-
     @model_validator(mode="after")
     def _topics_are_complete(self) -> EmailExtraction:
         if set(self.topics) != set(TOPICS):
@@ -172,11 +170,13 @@ class EmailExtraction(Schema):
 
 
 class EvidenceRef(Schema):
-    source_id: str
-    quote: str = Field(min_length=1)
-    start_offset: int | None = None
-    end_offset: int | None = None
-    note: str | None = None
+    source_id: str = Field(description="source_id of the cited email.")
+    quote: str = Field(
+        min_length=1, description="Verbatim substring of that email's body."
+    )
+    start_offset: Annotated[int | None, SkipJsonSchema()] = None
+    end_offset: Annotated[int | None, SkipJsonSchema()] = None
+    note: ComputedText = None
 
 
 class VoyageSummary(Schema):
@@ -198,19 +198,101 @@ class EmailAssessment(Schema):
     reason: str
 
 
+class DeductionRule(Schema):
+    kind: str = Field(
+        description=(
+            "What the rule covers, e.g. shifting from anchorage to berth, "
+            "vessel breakdown, terminal delay."
+        )
+    )
+    fraction_deducted: float = Field(
+        ge=0,
+        le=1,
+        description=(
+            "Share of the stoppage duration to deduct from laytime: 1.0 if the "
+            "period does not count at all, 0.5 for 'counts as half laytime', "
+            "0.0 if the period counts fully as laytime."
+        ),
+    )
+    quote: str = Field(
+        min_length=1, description="Verbatim contract wording for this rule."
+    )
+
+
+class Amendment(Schema):
+    term: str = Field(description="Contract term changed by the addendum.")
+    old_value: str | None = Field(
+        description="Previous value from the recap, if stated."
+    )
+    new_value: str = Field(description="Value after the addendum.")
+    quote: str = Field(
+        min_length=1, description="Verbatim quote from the addendum email."
+    )
+
+
 class ContractTerms(Schema):
-    status: Literal["resolved", "missing", "conflicted", "provisional"]
-    laytime_allowance_hours: float | None = Field(default=None, gt=0)
-    reversible: bool | None = None
-    turn_time_after_nor_hours: float | None = Field(default=None, ge=0)
-    laytime_end_event: str | None = None
-    demurrage_rate_per_day: float | None = Field(default=None, gt=0)
-    currency: str | None = None
-    pro_rata: bool | None = None
-    deduction_rules: list[str] = []
-    exceptions_continue_on_demurrage: bool | None = None
-    amendments: list[dict[str, Any]] = []
-    evidence: list[EvidenceRef] = []
+    status: ContractStatus = Field(
+        description=(
+            "resolved only when laytime allowance, turn time after NOR, "
+            "demurrage rate and currency are all present with evidence; "
+            "otherwise missing, conflicted or provisional."
+        )
+    )
+    laytime_allowance_hours: float | None = Field(
+        default=None,
+        gt=0,
+        description=(
+            "Total laytime allowance for the voyage in hours. Convert days "
+            "to hours if the recap gives days."
+        ),
+    )
+    reversible: bool | None = Field(
+        default=None,
+        description=(
+            "True if used laytime at all load and discharge ports is summed "
+            "against one shared allowance."
+        ),
+    )
+    turn_time_after_nor_hours: float | None = Field(
+        default=None,
+        ge=0,
+        description="Hours added after NOR tendered before laytime starts.",
+    )
+    laytime_end_event: str | None = Field(
+        default=None,
+        description=(
+            "Event that ends laytime at a port, usually hoses disconnected "
+            "after cargo operations; quote recap wording."
+        ),
+    )
+    demurrage_rate_per_day: float | None = Field(
+        default=None,
+        gt=0,
+        description="Demurrage rate per day in contract currency.",
+    )
+    currency: str | None = Field(
+        default=None, description="Currency code for demurrage (e.g. USD)."
+    )
+    pro_rata: bool | None = Field(
+        default=None,
+        description="True if partial days are charged proportionally (PDPR).",
+    )
+    deduction_rules: list[DeductionRule] = Field(
+        default=[], description="Laytime deduction rules from recap and addenda."
+    )
+    exceptions_continue_on_demurrage: bool | None = Field(
+        default=None,
+        description=(
+            "Whether deductions still apply after laytime allowance is "
+            "exhausted; null if recap is silent."
+        ),
+    )
+    amendments: list[Amendment] = Field(
+        default=[], description="Each addendum replaces only the term it amends."
+    )
+    evidence: list[EvidenceRef] = Field(
+        default=[], description="Quotes supporting each material contract field."
+    )
 
     @model_validator(mode="after")
     def _resolved_has_calculator_inputs(self) -> ContractTerms:
@@ -231,35 +313,92 @@ class ContractTerms(Schema):
 class PortVisit(Schema):
     """One port on the voyage (load, discharge, bunkering, ...)."""
 
-    visit_id: str
+    visit_id: str = Field(description="visit_id from the supplied itinerary.")
     port: str
     function: str
-    arrival: str | None = None
-    departure: str | None = None
+    arrival: str | None = Field(
+        default=None,
+        description=(
+            "Actual EOSP (end of sea passage) in ISO 8601 with offset. "
+            "Not anchored, NOR or all-fast. Not an ETA."
+        ),
+    )
+    departure: str | None = Field(
+        default=None,
+        description="Actual sailed / COSP time in ISO 8601 with offset. Not an ETD.",
+    )
     laytime_applies: bool = False
-    status: PortVisitStatus = "missing"
-    evidence: list[EvidenceRef] = []
+    status: PortVisitStatus = Field(
+        default="missing",
+        description=(
+            "final from final SOF or master actual report; provisional from "
+            "interim SOF or agent notice; missing if only estimates exist."
+        ),
+    )
+    evidence: list[EvidenceRef] = Field(
+        default=[], description="Quotes for arrival and departure times."
+    )
 
 
-class StoppageDeduction(Schema):
-    description: str
-    duration_seconds: Seconds = Field(default=None, ge=0)
-    contract_rule: str | None = None
-    evidence: list[EvidenceRef] = []
+class Stoppage(Schema):
+    description: str = Field(description="What happened during the stoppage.")
+    cause: StoppageCause = Field(description="Primary cause category.")
+    start: str | None = Field(
+        default=None, description="Stoppage start, ISO 8601 with offset."
+    )
+    end: str | None = Field(
+        default=None, description="Stoppage end, ISO 8601 with offset."
+    )
+    fraction_deducted: float | None = Field(
+        default=None,
+        ge=0,
+        le=1,
+        description=(
+            "From contract deduction_rules; 0 if terminal/berth waiting "
+            "counts as laytime unless contract says otherwise."
+        ),
+    )
+    contract_rule_quote: str | None = Field(
+        default=None, description="Quote of the deduction rule applied, if any."
+    )
+    evidence: list[EvidenceRef] = Field(
+        default=[], description="SOF or notice quotes for the stoppage."
+    )
+
+    @model_validator(mode="after")
+    def _ends_after_start(self) -> Stoppage:
+        if self.start and self.end:
+            if datetime.fromisoformat(self.end) < datetime.fromisoformat(self.start):
+                raise ValueError(f"stoppage ends before it starts: {self.description}")
+        return self
 
 
 class CargoPortLaytime(Schema):
-    visit_id: str
+    visit_id: str = Field(description="Cargo port visit_id (load or discharge).")
     port: str
-    nor_tendered: str | None = None
-    laytime_start: str | None = None
-    final_hoses_disconnected: str | None = None
-    gross_duration_seconds: Seconds = Field(default=None, ge=0)
-    stoppages: list[StoppageDeduction] = []
-    deducted_duration_seconds: Seconds = Field(default=None, ge=0)
-    used_duration_seconds: Seconds = Field(default=None, ge=0)
-    calculation_notes: list[str] = []
-    status: PortVisitStatus = "missing"
+    nor_tendered: str | None = Field(
+        default=None, description="NOR tendered time, ISO 8601 with offset."
+    )
+    laytime_start: ComputedText = None
+    final_hoses_disconnected: str | None = Field(
+        default=None,
+        description=(
+            "Hoses disconnected after cargo operations complete; ends laytime. "
+            "ISO 8601 with offset."
+        ),
+    )
+    gross_duration_seconds: Computed = None
+    stoppages: list[Stoppage] = []
+    deducted_duration_seconds: Computed = None
+    used_duration_seconds: Computed = None
+    calculation_notes: list[str] = Field(
+        default=[],
+        description="How events were chosen; conflicts or interim sources.",
+    )
+    status: PortVisitStatus = Field(
+        default="missing",
+        description="final only when final SOF reports hoses disconnected.",
+    )
     evidence: list[EvidenceRef] = []
 
     @model_validator(mode="after")
@@ -327,9 +466,15 @@ class ResolvedVoyageCore(Schema):
     """Resolver output (one LLM call per voyage). Durations are filled by Python."""
 
     contract: ContractTerms
-    port_visits: list[PortVisit]
-    laytime_by_cargo_port: list[CargoPortLaytime]
-    questions: list[ResolverQuestion] = []
+    port_visits: list[PortVisit] = Field(
+        description="One row per itinerary visit, in itinerary order."
+    )
+    laytime_by_cargo_port: list[CargoPortLaytime] = Field(
+        description="One row per load or discharge visit."
+    )
+    questions: list[ResolverQuestion] = Field(
+        default=[], description="Questions for a human when sources disagree."
+    )
     notes: list[str] = []
 
 

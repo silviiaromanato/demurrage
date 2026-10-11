@@ -3,8 +3,8 @@
 .env.*
 .venv/
 
-# Local Jev decision cache (debug / offline replay)
-.jev_cache/
+# Local LLM response cache (debug / offline replay)
+.llm_cache/
 
 # Python and tool caches
 __pycache__/

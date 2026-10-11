@@ -10,6 +10,7 @@ from demurrage.models import (
     DemurrageAnswer,
     EmailExtraction,
     LatestPosition,
+    Stoppage,
 )
 
 SECONDS_PER_DAY = 86400
@@ -19,25 +20,47 @@ def _parse(ts: str | None) -> datetime | None:
     return datetime.fromisoformat(ts) if ts else None
 
 
+def deducted_seconds(
+    window_start: datetime, window_end: datetime, stoppages: list[Stoppage]
+) -> int | None:
+    """Stoppage time × fraction inside the laytime window; overlaps count once.
+
+    Where stoppages overlap, the largest fraction applies to the shared time.
+    None if any stoppage lacks a start, an end, or a fraction.
+    """
+    spans = []
+    for s in stoppages:
+        start, end = _parse(s.start), _parse(s.end)
+        if start is None or end is None or s.fraction_deducted is None:
+            return None
+        start, end = max(start, window_start), min(end, window_end)
+        if start < end:
+            spans.append((start, end, s.fraction_deducted))
+    cuts = sorted({t for start, end, _ in spans for t in (start, end)})
+    total = 0.0
+    for a, b in zip(cuts, cuts[1:], strict=False):
+        covering = [f for start, end, f in spans if start <= a and b <= end]
+        if covering:
+            total += (b - a).total_seconds() * max(covering)
+    return round(total)
+
+
 def apply_laytime_durations(
     contract: ContractTerms, ports: list[CargoPortLaytime]
 ) -> list[CargoPortLaytime]:
-    """Fill gross/deducted/used seconds from the resolver's timestamps.
-
-    Stoppages are summed as given; clipping to the laytime window and splitting
-    overlaps (section 7) are not implemented yet.
-    """
+    """Fill laytime start and gross/deducted/used seconds from resolver times."""
     out = []
     for lt in ports:
-        start = _parse(lt.laytime_start)
         nor = _parse(lt.nor_tendered)
-        if start is None and nor and contract.turn_time_after_nor_hours is not None:
-            start = nor + timedelta(hours=contract.turn_time_after_nor_hours)
+        turn = contract.turn_time_after_nor_hours
+        start = nor + timedelta(hours=turn) if nor and turn is not None else None
         end = _parse(lt.final_hoses_disconnected)
-        gross = int((end - start).total_seconds()) if start and end else None
-        durations = [s.duration_seconds for s in lt.stoppages]
-        deducted = sum(durations) if None not in durations else None
-        used = gross - deducted if gross is not None and deducted is not None else None
+        gross = deducted = used = None
+        if start and end:
+            gross = int((end - start).total_seconds())
+            deducted = deducted_seconds(start, end, lt.stoppages)
+        if gross is not None and deducted is not None:
+            used = gross - deducted
         out.append(
             CargoPortLaytime.model_validate(
                 lt.model_dump()
@@ -86,5 +109,5 @@ def compute_demurrage(
 
 
 def pick_latest_position(extractions: list[EmailExtraction]) -> LatestPosition | None:
-    """Latest supported position (filled in the resolver step; not yet)."""
+    """Latest supported position; not implemented yet."""
     return None

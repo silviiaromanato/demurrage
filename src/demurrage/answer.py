@@ -1,4 +1,4 @@
-"""Assemble VoyageAnswer: resolver core + Python demurrage/position + dump."""
+"""Assemble VoyageAnswer: resolver core + Python demurrage/position + brief."""
 
 from __future__ import annotations
 
@@ -9,66 +9,15 @@ from demurrage.calculate import (
     compute_demurrage,
     pick_latest_position,
 )
+from demurrage.fleet import extractions_for_active_voyage, find_active_voyage, relevance
 from demurrage.models import (
     EmailAssessment,
     EmailExtraction,
-    Relevance,
     ResolvedVoyageCore,
     ReviewItem,
     VoyageAnswer,
     VoyageSummary,
 )
-
-
-def find_active_voyage(fleet: dict[str, Any]) -> tuple[dict, dict] | None:
-    for vessel in fleet.get("vessels", []):
-        if (voyage := vessel.get("current_voyage")) is not None:
-            return vessel, voyage
-    return None
-
-
-def active_vessel_name(fleet: dict[str, Any]) -> str | None:
-    active = find_active_voyage(fleet)
-    if active is None:
-        return None
-    return str(active[0].get("name", "")) or None
-
-
-def derive_relevance(e: EmailExtraction, fleet: dict[str, Any]) -> Relevance:
-    if e.extraction_status != "complete":
-        return e.relevance
-    if e.voyage_about == "no":
-        return "not_relevant"
-    if e.voyage_about == "uncertain":
-        return "uncertain"
-    if e.vessel_name is None:
-        return "uncertain"
-    active = active_vessel_name(fleet)
-    if active is None:
-        return "uncertain"
-    if e.vessel_name == active:
-        return "relevant"
-    fleet_names = {v["name"] for v in fleet.get("vessels", [])}
-    if e.vessel_name in fleet_names:
-        return "not_relevant"
-    return "uncertain"
-
-
-def finalize_extraction(e: EmailExtraction, fleet: dict[str, Any]) -> EmailExtraction:
-    relevance = derive_relevance(e, fleet)
-    if e.relevance == relevance:
-        return e
-    return e.model_copy(update={"relevance": relevance})
-
-
-def extractions_for_active_voyage(
-    extractions: list[EmailExtraction], fleet: dict[str, Any]
-) -> list[EmailExtraction]:
-    return [
-        finalize_extraction(e, fleet)
-        for e in extractions
-        if derive_relevance(e, fleet) == "relevant"
-    ]
 
 
 def build_voyage_answer(
@@ -153,7 +102,7 @@ def build_voyage_answer(
             source_id=e.source_id,
             subject=e.subject,
             vessel_name=e.vessel_name,
-            relevance=e.relevance,
+            relevance=relevance(e, fleet),
             affects_schedule=e.affects_schedule,
             affects_laytime=e.affects_laytime,
             topics=e.topics,
@@ -170,8 +119,7 @@ def build_voyage_answer(
     port_visits = resolved.port_visits
     laytime_ports = apply_laytime_durations(contract, resolved.laytime_by_cargo_port)
     demurrage = compute_demurrage(contract, laytime_ports)
-    voyage_extractions = extractions_for_active_voyage(extractions, fleet)
-    position = pick_latest_position(voyage_extractions)
+    position = pick_latest_position(extractions_for_active_voyage(extractions, fleet))
     blocked = any(r.severity == "blocker" for r in review_items)
     if active is not None and not blocked:
         summary = summary.model_copy(update={"status": demurrage.status})

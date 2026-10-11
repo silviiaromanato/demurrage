@@ -10,21 +10,9 @@ from typing import Any
 
 from pydantic import ValidationError
 
-from demurrage.answer import (
-    build_voyage_answer,
-    extractions_for_active_voyage,
-    finalize_extraction,
-    find_active_voyage,
-    render_brief,
-)
-from demurrage.emails import (
-    advance_extraction,
-    extract,
-    parse_eml_file,
-    replay_reviews,
-    review_for,
-    source_id_for,
-)
+from demurrage.answer import build_voyage_answer, render_brief
+from demurrage.classify import extract
+from demurrage.fleet import extractions_for_active_voyage, find_active_voyage
 from demurrage.models import (
     ContractTerms,
     EmailExtraction,
@@ -32,7 +20,9 @@ from demurrage.models import (
     ResolvedVoyageCore,
     VoyageAnswer,
 )
+from demurrage.parse import parse_eml_file, source_id_for
 from demurrage.resolver import resolve
+from demurrage.reviews import advance_extraction, replay_reviews, review_for
 from demurrage.validate import (
     require,
     validate_answer,
@@ -106,8 +96,7 @@ def ingest(
     extraction = extract(parsed, fleet)
     require(f"extract {path.name}", validate_extraction(extraction, parsed))
     priors = prior_answers.get(source_id, [])
-    extraction = replay_reviews(extraction, priors, fleet)
-    extraction = finalize_extraction(extraction, fleet)
+    extraction = replay_reviews(extraction, priors)
     extraction = extraction.model_copy(
         update={"answered_reviews": priors, "review": review_for(extraction, fleet)}
     )
