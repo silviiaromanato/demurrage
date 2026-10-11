@@ -14,7 +14,7 @@ import httpx
 from dotenv import load_dotenv
 from pydantic import BaseModel
 
-from demurrage.schema import strict_schema
+from src.schema import strict_schema
 
 load_dotenv()
 
@@ -30,7 +30,7 @@ DEFAULT_RESOLVER_MODEL = "openai/gpt-4.1-mini"
 DECISIONS_URL = "https://openrouter.ai/api/alpha/decisions"
 CHAT_URL = "https://openrouter.ai/api/v1/chat/completions"
 DEFAULT_CACHE_DIR = Path(".llm_cache")
-DEFAULT_USAGE_PATH = Path("usage.jsonl")
+DEFAULT_USAGE_PATH = Path("outputs/usage.jsonl")
 
 # Live calls made in this process. Cache hits are counted separately: a replay
 # does not charge again.

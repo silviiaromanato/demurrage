@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from demurrage.models import NOT_OUR_VESSEL, TOPICS, EmailExtraction, EmailReview
+from src.models import NOT_OUR_VESSEL, TOPICS, EmailExtraction, EmailReview
 
 
 def review_for(e: EmailExtraction, fleet: dict[str, Any]) -> EmailReview | None:

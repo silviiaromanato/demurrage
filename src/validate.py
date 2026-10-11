@@ -4,17 +4,17 @@ from __future__ import annotations
 
 from typing import Any
 
-from demurrage.answer import render_brief
-from demurrage.calculate import apply_laytime_durations, compute_demurrage
-from demurrage.derive import TIME_FIELDS, placed_time, timed_rows
-from demurrage.models import (
+from src.answer import render_brief
+from src.calculate import apply_laytime_durations, compute_demurrage
+from src.derive import TIME_FIELDS, placed_time, timed_rows
+from src.models import (
     EmailExtraction,
     EvidenceRef,
     ParsedEmail,
     ResolvedVoyageCore,
     VoyageAnswer,
 )
-from demurrage.resolver import (
+from src.resolver import (
     cited_text,
     evidence_refs,
     itinerary_skeleton,
@@ -129,7 +129,7 @@ def validate_answer(
     """The answer covers every email and its numbers recompute exactly."""
     problems = []
     if [a.source_id for a in answer.emails] != [e.source_id for e in extractions]:
-        problems.append("emails[] does not match extractions.jsonl order/content")
+        problems.append("emails[] does not match outputs/extractions.jsonl order/content")
 
     recomputed = apply_laytime_durations(answer.contract, answer.laytime_by_cargo_port)
     for got, want in zip(answer.laytime_by_cargo_port, recomputed, strict=True):
@@ -165,5 +165,5 @@ def validate_brief(brief: str, answer: VoyageAnswer) -> list[str]:
     return (
         []
         if brief == render_brief(answer)
-        else ["brief.md != render_brief(result.json)"]
+        else ["outputs/brief.md != render_brief(outputs/result.json)"]
     )

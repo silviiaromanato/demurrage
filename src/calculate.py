@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 
-from demurrage.models import (
+from src.models import (
     CargoPortLaytime,
     ContractTerms,
     DemurrageAnswer,

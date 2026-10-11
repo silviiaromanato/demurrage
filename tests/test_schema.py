@@ -1,10 +1,10 @@
-from demurrage.models import (
+from src.models import (
     ContractDraft,
     ContractTerms,
     LaytimeDraft,
     ResolvedVoyageCore,
 )
-from demurrage.schema import strict_schema
+from src.schema import strict_schema
 
 
 def _objects(node) -> list[dict]:

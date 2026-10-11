@@ -8,7 +8,7 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from demurrage.models import (
+from src.models import (
     CargoPortLaytime,
     ContractTerms,
     LatestPosition,

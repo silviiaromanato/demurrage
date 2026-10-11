@@ -4,9 +4,9 @@
 
 **How is the pipeline structured?**
 
-The pipeline has two phases: email ingestion/classification and on-demand voyage reporting. In Phase 1, `batch` deletes `extractions.jsonl` and previous answer files, then processes the full inbox. `live` processes a new `.eml` and appends one extraction record; the intended setup is a runner that calls it when an email arrives. `answer` records a human response when classification is uncertain and resumes processing only after the answer was provided. This feedback path was not thoroughly tested.
+The pipeline has two phases: email ingestion/classification and on-demand voyage reporting. In Phase 1, `batch` deletes `outputs/extractions.jsonl` and previous answer files, then processes the full inbox. `live` processes a new `.eml` and appends one extraction record; the intended setup is a runner that calls it when an email arrives. `answer` records a human response when classification is uncertain and resumes processing only after the answer was provided. This feedback path was not thoroughly tested.
 
-Python parses emails and JEV classifies vessel, voyage and topic. In Phase 2, the report command retrieves emails for the active voyage using `extractions.jsonl` and `fleet.json`. Sol (the Resolver) reconciles the contract and interprets port events and laytime evidence in one LLM step. Python checks the cited quotations and performs the arithmetic. The outputs are `result.json` and `brief.md`.
+Python parses emails and JEV classifies vessel, voyage and topic. In Phase 2, the report command retrieves emails for the active voyage using `outputs/extractions.jsonl` and `fleet.json`. Sol (the Resolver) reconciles the contract and interprets port events and laytime evidence in one LLM step. Python checks the cited quotations and performs the arithmetic. The outputs are `outputs/result.json` and `outputs/brief.md`.
 
 ```mermaid
 flowchart TD
@@ -15,7 +15,7 @@ flowchart TD
         Batch["demurrage batch"] --> Parse
         Live["demurrage live"] --> Parse
         Parse --> JEV["JEV: vessel, voyage, topic"]
-        JEV --> Log[("extractions.jsonl")]
+        JEV --> Log[("outputs/extractions.jsonl")]
         JEV -->|"Uncertain"| Answer["demurrage answer"]
         Answer --> Log
     end
@@ -25,7 +25,7 @@ flowchart TD
         Retrieve --> Resolver["Sol: contract, port events, evidence"]
         Resolver --> Calc["Python: quote checks and calculations"]
         Calc --> Check["demurrage check"]
-        Check --> Out["result.json + brief.md"]
+        Check --> Out["outputs/result.json + outputs/brief.md"]
     end
 ```
 
@@ -55,6 +55,7 @@ The human-feedback workflow needs end-to-end testing. If the resolver is unsure,
 
 With another week, I would test human feedback, save JEV confidence and tune prompts/thresholds; create a golden set of difficult emails; sample operator feedback and track performance on a dashboard; improve voyage matching using port and charterer (and potentially captain); and add non-reversible laytime and the rule for exceptions that stop once demurrage starts.
 
-Time allocated for the project: ~12h, over one single day, would spread it better usually, but my week was very busy at work. 
+**Time allocated for the project**: ~12h, over one single day, would spread it better usually, but my week was very busy at work. 
+
 Thank you for the time reviewing my proposal!
 by Silvia Romanato

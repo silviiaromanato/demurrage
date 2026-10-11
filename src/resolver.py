@@ -7,9 +7,9 @@ from collections.abc import Iterable, Iterator
 from pathlib import Path
 from typing import Any
 
-from demurrage import llm
-from demurrage.derive import apply_rule_fractions, finish_contract, place_times
-from demurrage.models import (
+from src import llm
+from src.derive import apply_rule_fractions, finish_contract, place_times
+from src.models import (
     CargoPortLaytime,
     ContractDraft,
     ContractTerms,
@@ -20,7 +20,7 @@ from demurrage.models import (
     ResolvedVoyageCore,
     ResolverQuestion,
 )
-from demurrage.parse import parse_eml_file
+from src.parse import parse_eml_file
 
 EMAILS_DIR = Path("emails")
 
@@ -376,7 +376,7 @@ def resolve(
 ) -> ResolvedVoyageCore:
     """Contract call, then laytime call. One retry if the output fails validation."""
     # Imported here: validate imports itinerary_skeleton from this module.
-    from demurrage.validate import validate_resolved
+    from src.validate import validate_resolved
 
     core = _assemble(voyage, extractions, vessel)
     problems = validate_resolved(core, voyage, extractions, bodies_for(extractions))

@@ -1,7 +1,7 @@
 import pytest
 
-from demurrage import llm
-from demurrage.models import ContractTerms
+from src import llm
+from src.models import ContractTerms
 
 
 @pytest.fixture

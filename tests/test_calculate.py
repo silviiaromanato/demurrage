@@ -1,7 +1,7 @@
 import pytest
 
-from demurrage.calculate import apply_laytime_durations, compute_demurrage
-from demurrage.models import (
+from src.calculate import apply_laytime_durations, compute_demurrage
+from src.models import (
     CargoPortLaytime,
     ContractTerms,
     EvidenceRef,

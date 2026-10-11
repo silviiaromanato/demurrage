@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from demurrage.models import (
+from src.models import (
     CargoPortLaytime,
     ContractTerms,
     DemurrageAnswer,

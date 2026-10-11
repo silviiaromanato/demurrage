@@ -8,7 +8,7 @@ from email.parser import BytesParser
 from email.utils import getaddresses, parsedate_to_datetime
 from pathlib import Path
 
-from demurrage.models import ParsedEmail
+from src.models import ParsedEmail
 
 
 def _addresses(header_value: str | None) -> list[str]:

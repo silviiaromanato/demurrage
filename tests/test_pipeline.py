@@ -4,10 +4,10 @@ from pathlib import Path
 
 import pytest
 
-from demurrage import llm, pipeline
-from demurrage.fleet import find_active_voyage
-from demurrage.models import EmailExtraction, EmailReview
-from demurrage.resolver import itinerary_skeleton
+from src import llm, pipeline
+from src.fleet import find_active_voyage
+from src.models import EmailExtraction, EmailReview
+from src.resolver import itinerary_skeleton
 
 
 def _choice(option: str) -> dict:
@@ -34,6 +34,7 @@ def workspace(tmp_path, monkeypatch):
     for name in ("email_01.eml", "email_05.eml"):
         shutil.copy(Path("emails") / name, inbox / name)
     shutil.copy(Path("fleet.json"), tmp_path / "fleet.json")
+    (tmp_path / "outputs").mkdir()
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv(llm.API_KEY_ENV, "test")
 
@@ -174,7 +175,7 @@ def test_run_check_reports_missing_brief(workspace, jev_yes):
     pipeline.run_report("KB-2603")
     pipeline.BRIEF_PATH.unlink()
     problems = pipeline.run_check()
-    assert any("brief.md not found" in p for p in problems)
+    assert any("outputs/brief.md not found" in p for p in problems)
 
 
 def test_write_outputs_reuses_core_when_nothing_is_material(workspace, monkeypatch):

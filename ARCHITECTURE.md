@@ -15,9 +15,9 @@ Run the pipeline on a folder of emails and answer, for each active voyage:
 
 The pipeline writes:
 
-- `extractions.jsonl`: one structured extraction per email;
-- `result.json`: the complete machine-readable voyage answer;
-- `brief.md`: a one-minute operator summary made from `result.json`.
+- `outputs/extractions.jsonl`: one structured extraction per email;
+- `outputs/result.json`: the complete machine-readable voyage answer;
+- `outputs/brief.md`: a one-minute operator summary made from `outputs/result.json`.
 
 ## 2. Main design rule
 
@@ -44,7 +44,7 @@ conversion and calculation is Python's (section 5.2).
 
 Python owns everything else: storage, quote filling and validation, **laytime duration
 seconds** on each cargo port, **demurrage**, `emails[]`, `voyage`, review items,
-and writing `result.json`. Demurrage is never an LLM output. Duration seconds
+and writing `outputs/result.json`. Demurrage is never an LLM output. Duration seconds
 on laytime rows are computed in Python (section 7), not returned by the
 resolver. An LLM never edits stored records and never computes money owed.
 
@@ -52,13 +52,13 @@ resolver. An LLM never edits stored records and never computes money owed.
 flowchart LR
     Email["One email"] --> Parse["Python parse"]
     Parse --> Extract["LLM classification"]
-    Extract --> Records["extractions.jsonl"]
+    Extract --> Records["outputs/extractions.jsonl"]
     Records --> Contract["LLM contract call"]
     Contract --> Laytime["LLM laytime call: ports, laytime, position"]
     Laytime --> Quotes["Python: quotes from cited lines, validation"]
     Quotes --> Calculate["Python: durations, demurrage"]
-    Calculate --> Result["result.json"]
-    Result --> Brief["brief.md"]
+    Calculate --> Result["outputs/result.json"]
+    Result --> Brief["outputs/brief.md"]
 ```
 
 Language judgment (which of several reported values counts) goes to a model,
@@ -81,17 +81,17 @@ flowchart TD
     Open -- no --> Next["Next email"]
     Open -- yes --> Pause["Stop ingest"]
     Pause --> Human["demurrage answer email option"]
-    Human --> Replace["Replace that line in extractions.jsonl"]
+    Human --> Replace["Replace that line in outputs/extractions.jsonl"]
     Replace --> Next
 ```
 
 - **Live** (`demurrage live [paths]`): ingest the given emails, or every email in
   `emails/` that is not yet recorded.
-- **Batch** (`demurrage batch`): delete `extractions.jsonl`, `resolved.json`,
-  `result.json` and `brief.md`, then run live on the whole folder, reusing
+- **Batch** (`demurrage batch`): delete `outputs/extractions.jsonl`, `outputs/resolved.json`,
+  `outputs/result.json` and `outputs/brief.md`, then run live on the whole folder, reusing
   earlier human answers.
 - **Report** (`demurrage report <voyage number or vessel name>`): resolve that
-  voyage from the recorded extractions and write `result.json` and `brief.md`.
+  voyage from the recorded extractions and write `outputs/result.json` and `outputs/brief.md`.
   Ingest never calls the resolver; only `report` does.
 - **Check** (`demurrage check`): re-run every validation on the saved outputs.
 
@@ -111,7 +111,7 @@ Rules:
 
 After extraction, Python checks each email for anything only a human can
 decide (for example `VESSEL_UNCERTAIN`: which fleet vessel the email is about).
-If so, the email's line in `extractions.jsonl` carries a `review` with the
+If so, the email's line in `outputs/extractions.jsonl` carries a `review` with the
 question, the allowed options and `status: open`.
 
 Ingest is sequential: while any line has an open review, no further email is
@@ -186,13 +186,13 @@ correction.
 ```mermaid
 flowchart LR
     Fleet["fleet.json itinerary"] --> C["LLM contract call"]
-    Extractions["extractions.jsonl: voyage emails"] --> C
+    Extractions["outputs/extractions.jsonl: voyage emails"] --> C
     C -- "deduction rules" --> L["LLM laytime call"]
     Extractions --> L
-    C --> Core["ResolvedVoyageCore → resolved.json"]
+    C --> Core["ResolvedVoyageCore → outputs/resolved.json"]
     L --> Core
     Core --> Py["Python: quotes, validation, calculate.py"]
-    Py --> Dump["VoyageAnswer → result.json, brief.md"]
+    Py --> Dump["VoyageAnswer → outputs/result.json, outputs/brief.md"]
 ```
 
 The contract call returns `ContractDraft`, the laytime call `LaytimeDraft`.
@@ -219,7 +219,7 @@ retried once with the problems appended to the prompt; a second failure stops
 the run. Python then fills `gross_duration_seconds` / `used_duration_seconds`
 from timestamps and contract rules (section 7) and runs the demurrage formula.
 
-The resolver is skipped, and the saved `resolved.json` reused, only when no
+The resolver is skipped, and the saved `outputs/resolved.json` reused, only when no
 voyage email is flagged `yes` for contract, schedule, laytime, or position.
 
 ### 5.0 Validation at every stage
@@ -243,8 +243,8 @@ in two layers:
   `validate_brief`.
 
 The pipeline raises `StageValidationError` at the first failing stage.
-`demurrage check` re-runs every check on the saved `extractions.jsonl`,
-`result.json` and `brief.md`.
+`demurrage check` re-runs every check on the saved `outputs/extractions.jsonl`,
+`outputs/result.json` and `outputs/brief.md`.
 
 ### 5.1 Resolver instructions
 
@@ -297,7 +297,7 @@ null unless the report is in UTC.
 
 ## 6. Final output
 
-The public output is `VoyageAnswer`, serialized as `result.json`.
+The public output is `VoyageAnswer`, serialized as `outputs/result.json`.
 
 ```mermaid
 flowchart TD
@@ -459,7 +459,7 @@ evidence and every required contract input is resolved.
 
 ## 8. Operator brief
 
-Generate `brief.md` from the validated `VoyageAnswer`.
+Generate `outputs/brief.md` from the validated `VoyageAnswer`.
 
 It contains:
 
@@ -469,11 +469,11 @@ It contains:
 - total used versus allowed;
 - demurrage rate and amount;
 - the source email id for each of those facts (the quotes stay in
-  `result.json`);
+  `outputs/result.json`);
 - final/provisional label;
 - material human-review items.
 
-The brief must copy numeric values from `result.json`; it must not recalculate
+The brief must copy numeric values from `outputs/result.json`; it must not recalculate
 them.
 
 ## 9. Testing

@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from demurrage.parse import parse_eml_file, source_id_for
+from src.parse import parse_eml_file, source_id_for
 
 EMAILS = sorted(Path("emails").glob("*.eml"))
 

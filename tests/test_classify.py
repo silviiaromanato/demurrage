@@ -3,12 +3,12 @@ from pathlib import Path
 
 import pytest
 
-from demurrage import llm
-from demurrage.classify import extract
-from demurrage.fleet import extractions_for_active_voyage, relevance
-from demurrage.models import NOT_OUR_VESSEL, VESSEL_UNCERTAIN, EmailReview
-from demurrage.parse import parse_eml_file
-from demurrage.reviews import advance_extraction, replay_reviews, review_for
+from src import llm
+from src.classify import extract
+from src.fleet import extractions_for_active_voyage, relevance
+from src.models import NOT_OUR_VESSEL, VESSEL_UNCERTAIN, EmailReview
+from src.parse import parse_eml_file
+from src.reviews import advance_extraction, replay_reviews, review_for
 
 FLEET = json.loads(Path("fleet.json").read_text())
 VESSELS = [v["name"] for v in FLEET["vessels"]]

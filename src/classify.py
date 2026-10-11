@@ -6,8 +6,8 @@ from typing import Any
 
 import httpx
 
-from demurrage import llm
-from demurrage.models import (
+from src import llm
+from src.models import (
     NOT_OUR_VESSEL,
     TOPICS,
     VESSEL_UNCERTAIN,

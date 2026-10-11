@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from typing import Any
 
-from demurrage.calculate import apply_laytime_durations, compute_demurrage
-from demurrage.fleet import relevance
-from demurrage.models import (
+from src.calculate import apply_laytime_durations, compute_demurrage
+from src.fleet import relevance
+from src.models import (
     CargoPortLaytime,
     EmailAssessment,
     EmailExtraction,
@@ -120,7 +120,7 @@ def _hours(seconds: int | None) -> str:
 
 
 def _evidence_lines(refs: list[EvidenceRef], indent: str = "  ") -> list[str]:
-    """The source emails behind a fact, once each; quotes stay in result.json."""
+    """The source emails behind a fact, once each; quotes stay in outputs/result.json."""
     sources = dict.fromkeys(ref.source_id for ref in refs)
     if not sources:
         return []

@@ -1,6 +1,6 @@
 import pytest
 
-from demurrage.models import EmailExtraction
+from src.models import EmailExtraction
 
 VOYAGE = {
     "voyage_no": "KB-2603",

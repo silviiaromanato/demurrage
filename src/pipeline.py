@@ -14,20 +14,20 @@ from typing import Any
 
 from pydantic import ValidationError
 
-from demurrage.answer import build_voyage_answer, render_brief
-from demurrage.classify import extract
-from demurrage.fleet import UnknownVoyage, emails_for_voyage_no, find_voyage
-from demurrage.llm import cost_summary
-from demurrage.models import (
+from src.answer import build_voyage_answer, render_brief
+from src.classify import extract
+from src.fleet import UnknownVoyage, emails_for_voyage_no, find_voyage
+from src.llm import cost_summary
+from src.models import (
     EmailExtraction,
     EmailReview,
     ResolvedVoyageCore,
     VoyageAnswer,
 )
-from demurrage.parse import parse_eml_file, source_id_for
-from demurrage.resolver import bodies_for, itinerary_skeleton, resolve
-from demurrage.reviews import advance_extraction, replay_reviews, review_for
-from demurrage.validate import (
+from src.parse import parse_eml_file, source_id_for
+from src.resolver import bodies_for, itinerary_skeleton, resolve
+from src.reviews import advance_extraction, replay_reviews, review_for
+from src.validate import (
     require,
     validate_answer,
     validate_brief,
@@ -38,11 +38,16 @@ from demurrage.validate import (
 
 EMAILS_DIR = Path("emails")
 FLEET_PATH = Path("fleet.json")
-EXTRACTIONS_PATH = Path("extractions.jsonl")
-RESULT_PATH = Path("result.json")
-BRIEF_PATH = Path("brief.md")
-RESOLVED_PATH = Path("resolved.json")
+OUTPUT_DIR = Path("outputs")
+EXTRACTIONS_PATH = OUTPUT_DIR / "extractions.jsonl"
+RESULT_PATH = OUTPUT_DIR / "result.json"
+BRIEF_PATH = OUTPUT_DIR / "brief.md"
+RESOLVED_PATH = OUTPUT_DIR / "resolved.json"
 MATERIAL_TOPICS = ("contract", "schedule", "laytime", "position")
+
+
+def _ensure_outputs() -> None:
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def read_extractions() -> list[EmailExtraction]:
@@ -57,6 +62,7 @@ def _line(e: EmailExtraction) -> str:
 
 
 def write_extractions(extractions: list[EmailExtraction]) -> None:
+    _ensure_outputs()
     EXTRACTIONS_PATH.write_text("".join(map(_line, extractions)), encoding="utf-8")
 
 
@@ -86,6 +92,7 @@ def _core_for(
     """
     if needs_resolve(voyage_emails):
         resolved = resolve(voyage, voyage_emails, vessel=vessel)
+        _ensure_outputs()
         RESOLVED_PATH.write_text(
             resolved.model_dump_json(indent=2) + "\n", encoding="utf-8"
         )
@@ -98,7 +105,7 @@ def _core_for(
 
 
 def write_outputs(identifier: str) -> VoyageAnswer:
-    """Resolve the voyage, validate, then write result.json and brief.md.
+    """Resolve the voyage, validate, then write outputs/result.json and outputs/brief.md.
 
     ``identifier`` is a voyage number or a vessel name.
     """
@@ -118,6 +125,7 @@ def write_outputs(identifier: str) -> VoyageAnswer:
     )
     answer = build_voyage_answer(fleet, extractions, resolved, vessel, voyage)
     require("answer", validate_answer(answer, extractions))
+    _ensure_outputs()
     RESULT_PATH.write_text(answer.model_dump_json(indent=2) + "\n", encoding="utf-8")
     BRIEF_PATH.write_text(render_brief(answer), encoding="utf-8")
     return answer
@@ -139,6 +147,7 @@ def ingest(
     extraction = extraction.model_copy(
         update={"answered_reviews": priors, "review": review_for(extraction, fleet)}
     )
+    _ensure_outputs()
     with EXTRACTIONS_PATH.open("a", encoding="utf-8") as f:
         f.write(_line(extraction))
     known.add(source_id)
@@ -187,14 +196,14 @@ def run_batch() -> None:
 
 
 def run_report(identifier: str) -> VoyageAnswer:
-    """Resolve the named voyage and write result.json and brief.md.
+    """Resolve the named voyage and write outputs/result.json and outputs/brief.md.
 
     ``identifier`` is a voyage number or a vessel name.
     """
     answer = write_outputs(identifier)
     voyage = answer.voyage
     print(
-        "report: wrote result.json and brief.md "
+        "report: wrote outputs/result.json and outputs/brief.md "
         f"({voyage.vessel_name} {voyage.voyage_id}, {voyage.status})"
     )
     return answer
@@ -285,7 +294,7 @@ def run_check() -> list[str]:
         if BRIEF_PATH.is_file():
             problems += validate_brief(BRIEF_PATH.read_text("utf-8"), answer)
         else:
-            problems.append("brief.md not found")
+            problems.append("outputs/brief.md not found")
     for p in problems:
         print(f"check: {p}")
     print(f"check: {'OK' if not problems else f'{len(problems)} problem(s)'}")
@@ -298,7 +307,7 @@ def main() -> None:
     )
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("batch", help="Classify all emails in emails/ from scratch")
-    live = sub.add_parser("live", help="Append new emails to extractions.jsonl")
+    live = sub.add_parser("live", help="Append new emails to outputs/extractions.jsonl")
     live.add_argument(
         "email_paths",
         nargs="*",
@@ -310,7 +319,7 @@ def main() -> None:
     answer.add_argument("answer", help="one of the options listed in the question")
     report = sub.add_parser(
         "report",
-        help="Resolve a voyage and write result.json and brief.md",
+        help="Resolve a voyage and write outputs/result.json and outputs/brief.md",
     )
     report.add_argument(
         "voyage",

@@ -2,9 +2,9 @@ import json
 
 import pytest
 
-from demurrage import llm
-from demurrage.answer import build_voyage_answer, render_brief
-from demurrage.models import (
+from src import llm
+from src.answer import build_voyage_answer, render_brief
+from src.models import (
     ContractDraft,
     ContractTerms,
     DeductionRule,
@@ -15,9 +15,9 @@ from demurrage.models import (
     Stoppage,
     WrittenTime,
 )
-from demurrage.resolver import bodies_for, cited_text, itinerary_skeleton, resolve
-from demurrage.reviews import review_for
-from demurrage.validate import validate_answer, validate_brief, validate_resolved
+from src.resolver import bodies_for, cited_text, itinerary_skeleton, resolve
+from src.reviews import review_for
+from src.validate import validate_answer, validate_brief, validate_resolved
 
 SID = "email_01.eml:abc"
 BODY = "agreed terms\n72 hours reversible\nPOSN 46-50N 006-10W"
@@ -211,7 +211,7 @@ def test_resolve_calls_contract_then_laytime(monkeypatch, voyage, make_extractio
         )
 
     monkeypatch.setenv(llm.API_KEY_ENV, "test")
-    monkeypatch.setattr("demurrage.resolver.llm.generate", generate)
+    monkeypatch.setattr("src.resolver.llm.generate", generate)
     core = resolve(voyage, [contract_email, laytime_email], vessel=VESSEL)
     assert [schema for schema, _, _ in calls] == [ContractDraft, LaytimeDraft]
     contract_system, contract_user = calls[0][1], calls[0][2]
@@ -288,7 +288,7 @@ def test_resolve_retries_once_when_a_citation_is_out_of_range(
         )
 
     monkeypatch.setenv(llm.API_KEY_ENV, "test")
-    monkeypatch.setattr("demurrage.resolver.llm.generate", generate)
+    monkeypatch.setattr("src.resolver.llm.generate", generate)
     core = resolve(voyage, [contract_email, _laytime_email(make_extraction)])
     assert [schema for schema, _ in calls] == [
         ContractDraft,
@@ -307,7 +307,7 @@ def test_resolve_without_model_returns_skeleton(monkeypatch, voyage):
     def generate(*args, **kwargs):
         raise AssertionError("generate should not be called")
 
-    monkeypatch.setattr("demurrage.resolver.llm.generate", generate)
+    monkeypatch.setattr("src.resolver.llm.generate", generate)
     core = resolve(voyage, [])
     assert core == itinerary_skeleton(voyage)
 

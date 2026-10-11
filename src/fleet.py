@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from demurrage.models import EmailExtraction, Relevance
+from src.models import EmailExtraction, Relevance
 
 
 class UnknownVoyage(LookupError):

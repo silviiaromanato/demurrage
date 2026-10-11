@@ -1,7 +1,7 @@
 import pytest
 
-from demurrage.derive import apply_rule_fractions, finish_contract, placed_time
-from demurrage.models import (
+from src.derive import apply_rule_fractions, finish_contract, placed_time
+from src.models import (
     ContractTerms,
     DeductionRule,
     EvidenceRef,
