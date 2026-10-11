@@ -1,0 +1,152 @@
+{
+  "voyage": {
+    "voyage_id": "KB-2603",
+    "vessel_name": "KESTREL BAY",
+    "imo": "9314820",
+    "charterer": "Calderon Energy Trading SA",
+    "status": "incomplete"
+  },
+  "emails": [
+    {
+      "source_id": "email_01.eml:8e39c594b82c63e8",
+      "subject": "KESTREL BAY / CALDERON - ANTWERP/COTONOU - CLEAN RECAP",
+      "vessel_name": null,
+      "voyage_no": null,
+      "relevance": "uncertain",
+      "affects_schedule": false,
+      "affects_laytime": false,
+      "topics": {
+        "contract": false,
+        "schedule": false,
+        "laytime": false,
+        "position": false,
+        "other": false
+      },
+      "reason": "Pending LLM extraction."
+    },
+    {
+      "source_id": "email_02.eml:c1471db05c986c46",
+      "subject": "KESTREL BAY - voyage instructions - Antwerp / Cotonou",
+      "vessel_name": null,
+      "voyage_no": null,
+      "relevance": "uncertain",
+      "affects_schedule": false,
+      "affects_laytime": false,
+      "topics": {
+        "contract": false,
+        "schedule": false,
+        "laytime": false,
+        "position": false,
+        "other": false
+      },
+      "reason": "Pending LLM extraction."
+    }
+  ],
+  "contract": {
+    "status": "missing",
+    "laytime_allowance_hours": null,
+    "reversible": null,
+    "turn_time_after_nor_hours": null,
+    "laytime_end_event": null,
+    "demurrage_rate_per_day": null,
+    "currency": null,
+    "pro_rata": null,
+    "deduction_rules": [],
+    "exceptions_continue_on_demurrage": null,
+    "amendments": [],
+    "evidence": []
+  },
+  "port_visits": [
+    {
+      "visit_id": "pv-1",
+      "port": "Antwerp",
+      "function": "load",
+      "arrival": null,
+      "departure": null,
+      "laytime_applies": true,
+      "status": "missing",
+      "evidence": []
+    },
+    {
+      "visit_id": "pv-2",
+      "port": "Gibraltar",
+      "function": "bunkering",
+      "arrival": null,
+      "departure": null,
+      "laytime_applies": false,
+      "status": "missing",
+      "evidence": []
+    },
+    {
+      "visit_id": "pv-3",
+      "port": "Cotonou",
+      "function": "discharge",
+      "arrival": null,
+      "departure": null,
+      "laytime_applies": true,
+      "status": "missing",
+      "evidence": []
+    }
+  ],
+  "laytime_by_cargo_port": [
+    {
+      "visit_id": "pv-1",
+      "port": "Antwerp",
+      "nor_tendered": null,
+      "laytime_start": null,
+      "final_hoses_disconnected": null,
+      "gross_duration_seconds": null,
+      "stoppages": [],
+      "deducted_duration_seconds": 0,
+      "used_duration_seconds": null,
+      "calculation_notes": [],
+      "status": "missing",
+      "evidence": []
+    },
+    {
+      "visit_id": "pv-3",
+      "port": "Cotonou",
+      "nor_tendered": null,
+      "laytime_start": null,
+      "final_hoses_disconnected": null,
+      "gross_duration_seconds": null,
+      "stoppages": [],
+      "deducted_duration_seconds": 0,
+      "used_duration_seconds": null,
+      "calculation_notes": [],
+      "status": "missing",
+      "evidence": []
+    }
+  ],
+  "latest_position": null,
+  "demurrage": {
+    "aggregation_method": null,
+    "total_used_seconds": null,
+    "allowed_seconds": null,
+    "excess_seconds": null,
+    "daily_rate": null,
+    "currency": null,
+    "amount_owed": null,
+    "calculation_formula": null,
+    "status": "incomplete",
+    "evidence": []
+  },
+  "review_items": [
+    {
+      "severity": "material",
+      "code": "EXTRACTION_PENDING",
+      "message": "One or more emails have pending LLM extraction; contract, laytime, and demurrage fields are not populated.",
+      "affected_fields": [
+        "contract",
+        "port_visits",
+        "laytime_by_cargo_port",
+        "demurrage"
+      ],
+      "related_source_ids": [
+        "email_01.eml:8e39c594b82c63e8",
+        "email_02.eml:c1471db05c986c46"
+      ]
+    }
+  ],
+  "evidence_index": []
+}

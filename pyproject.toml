@@ -7,7 +7,9 @@ authors = [
     { name = "SIlvia Romanato", email = "80218776+silvipilvi@users.noreply.github.com" }
 ]
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "pydantic>=2.14.0",
+]
 
 [project.scripts]
 demurrage = "demurrage:main"
@@ -18,6 +20,7 @@ build-backend = "uv_build"
 
 [dependency-groups]
 dev = [
+    "pytest>=9.1.1",
     "ruff>=0.17.0",
 ]
 

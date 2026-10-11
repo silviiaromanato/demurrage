@@ -21,75 +21,97 @@ The pipeline writes:
 
 ## 2. Main design rule
 
-The LLM reads one email at a time. It classifies the email and extracts
-structured facts with exact quotations.
+**LLMs choose, Python calculates.** There are two LLM jobs, and neither of
+them produces a number that Python can compute:
 
-Python owns everything after extraction: storage, source precedence, time-zone
-normalization, laytime arithmetic, demurrage arithmetic, validation, and output.
-An LLM never maintains or mutates voyage state.
+1. **Extraction** reads one email at a time. It classifies the email and
+   extracts structured facts with exact quotations.
+2. **Resolution** reads all extractions for a voyage (plus `fleet.json`) in **one
+   structured call** and returns the voyage core: `ContractTerms`, `port_visits[]`,
+   and `laytime_by_cargo_port[]` (the same shapes as in `result.json`), each
+   field backed by `EvidenceRef` quotes from the extractions.
+
+Python owns everything else: storage, quote validation, **laytime duration
+seconds** on each cargo port, **demurrage**, **latest position**, `emails[]`,
+`voyage`, review items, and writing `result.json`. Demurrage and position are
+never LLM outputs. Duration seconds on laytime rows are computed in Python
+(section 7), not returned by the resolver. An LLM never edits stored records
+and never computes money owed.
 
 ```mermaid
 flowchart LR
     Email["One email"] --> Parse["Python parse"]
     Parse --> Extract["LLM extraction"]
     Extract --> Records["Append-only records"]
-    Records --> Derive["Python derives voyage answer"]
-    Derive --> Result["result.json"]
+    Records --> Resolve["LLM resolver: contract, ports, laytime"]
+    Resolve --> Calculate["Python: durations, demurrage, position"]
+    Calculate --> Result["result.json"]
     Result --> Brief["brief.md"]
 ```
 
-This separation keeps language interpretation flexible and financial
-calculations deterministic and testable.
+Language judgment (which of several reported values counts) goes to a model,
+where fixed rules would break on unseen wording. Financial arithmetic stays
+deterministic and testable.
 
-## 3. Two operating modes
+## 3. One ingestion step, two entry points
 
-Both modes use the same parser, extraction schema, and Python answer builder.
-
-### 3.1 Batch recording
-
-Batch mode imports the supplied folder or rebuilds the records from scratch.
+There is a single per-email step. Live mode runs it on new emails; batch mode
+clears the records and runs it on every email in the folder.
 
 ```mermaid
 flowchart TD
-    Folder["emails folder"] --> Loop["Process every email"]
-    Loop --> ParseBatch["Parse email"]
-    ParseBatch --> ExtractBatch["Classify and extract"]
-    ExtractBatch --> Jsonl["Append EmailExtraction to JSONL"]
-    Jsonl --> Build["Build active voyage answer"]
-    Build --> Outputs["result.json and brief.md"]
+    Email["One email"] --> Known{"source_id already recorded?"}
+    Known -- yes --> Skip["Skip"]
+    Known -- no --> Parse["Parse email"]
+    Parse --> Extract["Classify and extract"]
+    Extract --> Append["Append EmailExtraction to JSONL"]
+    Append --> Rebuild["Rebuild voyage answer from all records"]
+    Rebuild --> Outputs["result.json and brief.md"]
+    Outputs --> Open{"Open question on this email's line?"}
+    Open -- no --> Next["Next email"]
+    Open -- yes --> Pause["Stop ingest"]
+    Pause --> Human["demurrage answer email option"]
+    Human --> Replace["Replace that line in extractions.jsonl"]
+    Replace --> Next
 ```
+
+- **Live** (`demurrage live [paths]`): ingest the given emails, or every email in
+  `emails/` that is not yet recorded.
+- **Batch** (`demurrage batch`): delete `extractions.jsonl`, then run live on the
+  whole folder.
 
 Rules:
 
 - Process each file independently.
-- Save one validated `EmailExtraction` per line.
-- Build the answer after all emails have been recorded.
-- Load all recorded extractions associated with the active voyage when building
-  its answer.
-- Do not rely on filename or email arrival order.
-- Re-running the same folder should produce the same logical answer.
-
-### 3.2 Live extraction
-
-Live mode handles an email arriving after the initial batch.
-
-```mermaid
-flowchart TD
-    NewEmail["New email"] --> ParseLive["Parse email"]
-    ParseLive --> ExtractLive["Classify and extract"]
-    ExtractLive --> Append["Append EmailExtraction"]
-    Append --> Affected["Find affected voyage"]
-    Affected --> Rebuild["Rebuild voyage from all its records"]
-    Rebuild --> Updated["Updated result.json"]
-```
-
-Rules:
-
+- Save one validated `EmailExtraction` per line, at most one per `source_id`;
+  re-ingesting an already-recorded email is a no-op.
 - Append the new extraction; do not ask the LLM to edit an old state object.
-- Find the affected voyage, load all extractions associated with that voyage,
-  and rebuild its complete answer.
+- After each appended email, rebuild the complete answer from all recorded
+  extractions associated with the voyage.
+- Do not rely on filename or email arrival order: intermediate answers may
+  differ, but the final answer must not.
+- Re-running the same folder should produce the same logical answer.
 - If the voyage association is uncertain, retain the record and create a
   review item instead of forcing a match.
+
+### 3.1 Human questions
+
+After extraction, Python checks each email for anything only a human can
+decide (for example `VESSEL_UNCERTAIN`: which fleet vessel the email is about).
+If so, the email's line in `extractions.jsonl` carries a `review` with the
+question, the allowed options and `status: open`.
+
+Ingest is sequential: while any line has an open review, no further email is
+processed. The operator answers with
+`demurrage answer <filename or source_id> <option>`. That **same line is
+replaced** with `review.status: answered`, the chosen option and a timestamp;
+no new line is added. Ingest then resumes until the next question or the end.
+
+The model's extracted values stay untouched on the line; Python applies the
+human answer when building the voyage answer, and the answer always wins.
+`demurrage batch` keeps answered reviews: if the rebuilt extraction raises the
+same question for the same `source_id`, the earlier answer is reused instead of
+asking again.
 
 ## 4. Parse and extract one email
 
@@ -134,6 +156,8 @@ EmailExtraction
 
 Each extracted fact includes:
 
+- a fact ID, unique within its email (`<source_id>#<n>`), so the resolver can
+  cite it;
 - a typed value;
 - its unit or time-zone label where applicable;
 - actual, estimated, interim, final, corrected, or unknown status;
@@ -146,7 +170,7 @@ and whether the value is actual or estimated.
 The model extracts what an email says. It does not calculate durations, choose
 between conflicting emails, or invent missing values.
 
-## 5. Build the voyage answer in Python
+## 5. Build the voyage answer: resolver core, then Python finish
 
 `fleet.json` supplies vessel identity, the active voyage, planned ports, their
 order, and whether a call is load, discharge, or another function.
@@ -156,29 +180,66 @@ The recorded extractions supply what was reported to have happened.
 For this version, the dataset is small enough to load **all** extractions
 associated with the selected voyage. There is no separate retrieval or ranking
 stage that tries to choose a smaller evidence pack. Python filters records by
-their voyage association, then builds the answer from the complete set.
+their voyage association (applying human answers first), then passes the
+complete set to the resolver.
 
 This keeps the first implementation simple and prevents a retrieval step from
 silently omitting a material recap, addendum, SOF, or correction.
 
 ```mermaid
 flowchart LR
-    Fleet["fleet.json"] --> Select["Select voyage"]
-    Extractions["All EmailExtraction records"] --> Select
-    Select --> VoyageRecords["All records for selected voyage"]
-    VoyageRecords --> Builder["Python answer builder"]
-    Fleet --> Builder
-    Builder --> Contract["Effective contract"]
-    Builder --> Ports["Actual port calls"]
-    Builder --> Laytime["Cargo-port laytime"]
-    Contract --> Demurrage["Demurrage calculation"]
-    Laytime --> Demurrage
-    Ports --> Position["Latest vessel status"]
+    Fleet["fleet.json"] --> Resolver["LLM resolver: 1 call / voyage"]
+    Extractions["extractions.jsonl"] --> Resolver
+    Resolver --> Core["ResolvedVoyageCore"]
+    Core --> Py["Python calculate.py"]
+    Extractions --> Py
+    Py --> Dump["VoyageAnswer → result.json"]
 ```
 
-### 5.1 Selection rules
+`ResolvedVoyageCore` is the resolver's JSON schema:
 
-Keep the first implementation small and explicit:
+```text
+ResolvedVoyageCore
+├── contract: ContractTerms
+├── port_visits: PortVisit[]
+├── laytime_by_cargo_port: CargoPortLaytime[]   (times/stoppages; seconds null)
+├── questions[]   optional human questions if unsure
+└── notes[]
+```
+
+There is no `demurrage` or `latest_position` on this object. Python fills those
+when assembling `VoyageAnswer`.
+
+Before demurrage, Python validates that every `EvidenceRef.quote` appears in the
+cited email, fills `gross_duration_seconds` / `used_duration_seconds` from
+timestamps and contract rules (section 7), then runs the demurrage formula.
+
+The resolver may be skipped when a new email cannot affect contract, schedule, or
+laytime (reuse the previous `ResolvedVoyageCore`).
+
+### 5.0 Validation at every stage
+
+All schemas are Pydantic models (`models.py`, `extra="forbid"`). Each LLM call
+asks for `Schema.model_json_schema()` and parses the reply with
+`Schema.model_validate_json`, so malformed output fails at the call. Checks run
+in two layers:
+
+- **Inside a schema** (`model_validator`): rules that need only that object,
+  such as `used = gross − deducted`, `excess = max(used − allowed, 0)`,
+  `amount = excess / 86400 × rate`, and an answered review whose answer is one of
+  its options.
+- **Across stages** (`validate.py`): `validate_extraction` (quotes are in the
+  email body), `validate_resolved` (itinerary visits, one laytime row per cargo
+  visit, no durations, evidence from extracted facts), `validate_answer`
+  (laytime and demurrage recompute exactly), and `validate_brief`.
+
+The pipeline raises `StageValidationError` at the first failing stage.
+`demurrage check` re-runs every check on the saved `extractions.jsonl`,
+`result.json` and `brief.md`.
+
+### 5.1 Resolver instructions
+
+These rules go into the resolver prompt and into its golden test set:
 
 - A clean recap supplies the baseline contract.
 - An addendum replaces only the term it explicitly changes.
@@ -193,18 +254,31 @@ Keep the first implementation small and explicit:
 - Email delivery order never decides which value wins.
 - Losing and superseded evidence remains visible for audit.
 
+### 5.2 Who fills each part of `VoyageAnswer`
+
+| Field | LLM resolver | Python |
+| --- | --- | --- |
+| `contract` | **Yes** (`ContractTerms`) | Validates quotes |
+| `port_visits[]` | **Yes** (`PortVisit`) | Validates quotes |
+| `laytime_by_cargo_port[]` | **Yes** (times, stoppages, evidence) | Duration seconds + deductions |
+| `demurrage` | No | **Yes** (`compute_demurrage`) |
+| `latest_position` | No | **Yes** (`pick_latest_position`) |
+| `voyage`, `emails[]` | No | From fleet + extractions + human answers |
+| `review_items[]` | `questions[]` only | Open email reviews + validation |
+
 ## 6. Final output
 
 The public output is `VoyageAnswer`, serialized as `result.json`.
 
 ```mermaid
 flowchart TD
-    Assessments["All email assessments"] --> VoyageAnswer
-    Contract["Effective contract"] --> VoyageAnswer
-    Calls["Port calls"] --> VoyageAnswer
-    PortLaytime["Laytime by cargo port"] --> VoyageAnswer
-    Demurrage["Demurrage result"] --> VoyageAnswer
-    Reviews["Human review items"] --> VoyageAnswer
+    Assessments["email assessments (Python)"] --> VoyageAnswer
+    Contract["contract (LLM)"] --> VoyageAnswer
+    Calls["port calls (LLM)"] --> VoyageAnswer
+    PortLaytime["laytime by port (LLM times, Python seconds)"] --> VoyageAnswer
+    Demurrage["demurrage (Python only)"] --> VoyageAnswer
+    Position["latest position (Python only)"] --> VoyageAnswer
+    Reviews["review items (Python)"] --> VoyageAnswer
 ```
 
 ```text
@@ -212,7 +286,7 @@ VoyageAnswer
 ├── voyage
 ├── emails[]
 ├── contract
-├── port_calls[]
+├── port_visits[]
 ├── laytime_by_cargo_port[]
 ├── latest_position
 ├── demurrage
@@ -252,11 +326,11 @@ Include every input required by the calculator:
 - whether exceptions continue on demurrage;
 - amendment history and evidence.
 
-### 6.4 PortCall
+### 6.4 PortVisit
 
-For every planned or discovered call:
+For every planned or discovered port on the voyage (DOMAIN.md: “port call”):
 
-- stable port-call ID;
+- stable `visit_id`;
 - port and function;
 - EOSP/arrival;
 - sailing/departure;
@@ -280,6 +354,10 @@ For every load or discharge call:
 
 ### 6.6 DemurrageAnswer
 
+Filled entirely in Python (section 7) from validated `contract` and
+`laytime_by_cargo_port`. The resolver never returns an amount owed or a total
+hours figure.
+
 - aggregation method;
 - total used laytime;
 - allowed laytime;
@@ -289,6 +367,14 @@ For every load or discharge call:
 - calculation formula;
 - final, provisional, or incomplete status;
 - evidence for all contract inputs.
+
+### 6.6a LatestPosition
+
+Filled entirely in Python from `position_facts` on the voyage extractions. If
+the resolver cites a `latest_position` fact ID, use that report; otherwise use
+the position fact with the latest `reported_at` among relevant emails. The LLM
+does not write the position text or timestamp into the answer, only extraction
+does, and Python copies it with evidence.
 
 ### 6.7 EvidenceRef
 
@@ -377,19 +463,32 @@ Use reviewed examples covering:
 For every extracted fact, verify that its evidence quote occurs in the source
 email.
 
-### 9.3 Derivation and calculation tests
+### 9.3 Resolver tests
 
-- Addendum rate replaces the recap rate only.
-- Final SOF replaces the interim event value.
-- UTC/WAT equivalent values resolve to the same instant.
+Run against reviewed extraction sets (no email parsing involved):
+
+- Addendum rate is selected over the recap rate, and only for that term.
+- Final SOF event is selected over the interim one; the interim stays cited as
+  superseded.
+- UTC and WAT reports of the same event are treated as one event, not a
+  conflict.
+- Equal-authority disagreement produces a question, not a silent choice.
+- Shuffling the order of extractions does not change the selection.
+- A forwarded duplicate does not change the selection.
+
+### 9.4 Validation and calculation tests
+
+Run on hand-written `ResolvedVoyageCore` objects (or contract/port/laytime
+rows), so they are exact and need no model:
+
+- A citation to a missing or wrong-type fact is rejected.
+- UTC/WAT equivalent values normalize to the same instant.
 - Non-cargo calls do not contribute laytime.
 - Contract count factors produce the expected deductions.
+- Overlapping stoppages are not deducted twice.
 - Reversible port totals and pro-rata money are exact.
-- Equal-authority disagreement creates a review item.
-- Shuffling email files does not change the final answer.
-- Duplicating a forwarded message does not change the final answer.
 
-### 9.4 End-to-end fixture
+### 9.5 End-to-end fixture
 
 The reviewed 19-email fixture should produce:
 
@@ -405,7 +504,9 @@ The reviewed 19-email fixture should produce:
 
 ## 10. Evaluation
 
-Evaluate extraction separately from Python calculation.
+Evaluate the two LLM jobs separately from each other and from Python
+calculation: extraction against golden emails, the resolver against golden
+extraction sets. A regression can then be traced to the step that caused it.
 
 ```mermaid
 flowchart LR
@@ -436,13 +537,15 @@ Measure:
 - fact accuracy by type: contract, event, stoppage, position;
 - percentage of evidence quotes found exactly in source text;
 - conflict/correction detection;
+- resolver selection accuracy per term and per port event;
+- percentage of resolver selections that pass Python validation;
 - end-to-end answer field accuracy;
 - token usage, latency, and cost per 19-email run.
 
 Accept a model or prompt change only when:
 
-- the golden extraction set does not regress;
-- all evidence quotes validate;
+- the golden extraction and resolver sets do not regress;
+- all evidence quotes and resolver citations validate;
 - the end-to-end calculation still matches the reviewed fixture;
 - any cost increase is justified by better accuracy.
 
@@ -452,17 +555,21 @@ Accept a model or prompt change only when:
 2. Parse `.eml` files.
 3. Implement one-email extraction.
 4. Record all 19 extractions.
-5. Build the Python voyage answer.
-6. Calculate laytime and demurrage.
-7. Write `result.json` and `brief.md`.
+5. Implement the voyage resolver and Python citation validation.
+6. Calculate laytime and demurrage from the validated selection.
+7. Write `result.json` and `brief.md`; `demurrage check` must pass.
 8. Add tests and record evaluation results.
+
+Steps 1, 2, 6 and 7 are in place, with a placeholder LLM boundary (`llm.py`).
+Steps 3 and 5 need only `llm.call_model` implemented.
 
 ## 12. Deferred work
 
 Do not include these in the first implementation:
 
 - mutable LLM-maintained contract or voyage state;
-- voyage-level resolver agent;
+- an LLM that computes durations, totals, or money;
+- multi-step or tool-using agents (the resolver is one structured call);
 - multi-agent orchestration;
 - granular retrieval by port, event type, or time window;
 - database, queues, vector store, API, or UI;
