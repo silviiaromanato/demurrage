@@ -1,4 +1,9 @@
-from demurrage.models import ContractTerms, ResolvedVoyageCore
+from demurrage.models import (
+    ContractDraft,
+    ContractTerms,
+    LaytimeDraft,
+    ResolvedVoyageCore,
+)
 from demurrage.schema import strict_schema
 
 
@@ -26,11 +31,36 @@ def test_every_object_is_closed_and_fully_required():
 
 def test_nullable_numbers_become_type_lists_without_exclusive_bounds():
     strict = strict_schema(ContractTerms.model_json_schema())
-    hours = strict["properties"]["laytime_allowance_hours"]
+    hours = strict["properties"]["laytime_allowance"]
     assert hours["type"] == ["number", "null"]
     assert hours["minimum"] > 0
     assert "exclusiveMinimum" not in str(strict)
     assert "default" not in str(strict)
+
+
+def test_nullable_object_ref_stays_any_of():
+    strict = strict_schema(LaytimeDraft.model_json_schema())
+    position = strict["properties"]["latest_position"]
+    assert position["anyOf"] == [
+        {"$ref": "#/$defs/LatestPosition"},
+        {"type": "null"},
+    ]
+
+
+def test_ref_has_no_sibling_keywords():
+    for draft in (ContractDraft, LaytimeDraft):
+        refs = _refs(strict_schema(draft.model_json_schema()))
+        assert refs
+        assert all(set(node) == {"$ref"} for node in refs)
+
+
+def _refs(node) -> list[dict]:
+    if isinstance(node, dict):
+        found = [node] if "$ref" in node else []
+        return found + [r for v in node.values() for r in _refs(v)]
+    if isinstance(node, list):
+        return [r for item in node for r in _refs(item)]
+    return []
 
 
 def test_input_schema_is_not_mutated():

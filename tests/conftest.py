@@ -5,9 +5,19 @@ from demurrage.models import EmailExtraction
 VOYAGE = {
     "voyage_no": "KB-2603",
     "itinerary": [
-        {"seq": 1, "port": "Antwerp", "function": "load"},
-        {"seq": 2, "port": "Gibraltar", "function": "bunkering"},
-        {"seq": 3, "port": "Cotonou", "function": "discharge"},
+        {"seq": 1, "port": "Antwerp", "function": "load", "utc_offset": "+01:00"},
+        {
+            "seq": 2,
+            "port": "Gibraltar",
+            "function": "bunkering",
+            "utc_offset": "+01:00",
+        },
+        {
+            "seq": 3,
+            "port": "Cotonou",
+            "function": "discharge",
+            "utc_offset": "+01:00",
+        },
     ],
 }
 

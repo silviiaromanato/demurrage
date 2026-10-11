@@ -1,4 +1,4 @@
-"""Python-only arithmetic: laytime durations, demurrage, latest position."""
+"""Python-only arithmetic: laytime durations and demurrage."""
 
 from __future__ import annotations
 
@@ -8,8 +8,6 @@ from demurrage.models import (
     CargoPortLaytime,
     ContractTerms,
     DemurrageAnswer,
-    EmailExtraction,
-    LatestPosition,
     Stoppage,
 )
 
@@ -104,10 +102,4 @@ def compute_demurrage(
         amount_owed=amount,
         calculation_formula="max(total_used - allowed, 0) / 86400 * daily_rate",
         status="final" if final else "provisional",
-        evidence=contract.evidence,
     )
-
-
-def pick_latest_position(extractions: list[EmailExtraction]) -> LatestPosition | None:
-    """Latest supported position; not implemented yet."""
-    return None

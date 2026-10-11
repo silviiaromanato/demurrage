@@ -1,11 +1,13 @@
+import json
 import shutil
 from pathlib import Path
 
 import pytest
 
-from demurrage import llm
-from demurrage import pipeline
-from demurrage.models import EmailReview
+from demurrage import llm, pipeline
+from demurrage.fleet import find_active_voyage
+from demurrage.models import EmailExtraction, EmailReview
+from demurrage.resolver import itinerary_skeleton
 
 
 def _choice(option: str) -> dict:
@@ -34,6 +36,14 @@ def workspace(tmp_path, monkeypatch):
     shutil.copy(Path("fleet.json"), tmp_path / "fleet.json")
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv(llm.API_KEY_ENV, "test")
+
+    def generate(system, user, schema, name=None):
+        fleet = json.loads(Path("fleet.json").read_text(encoding="utf-8"))
+        active = find_active_voyage(fleet)
+        assert active is not None
+        return itinerary_skeleton(active[1])
+
+    monkeypatch.setattr(llm, "generate", generate)
     return tmp_path
 
 
@@ -46,15 +56,37 @@ def jev_yes(monkeypatch):
     monkeypatch.setattr(llm, "decide", decide)
 
 
-def test_live_writes_outputs_and_check_passes(workspace, jev_yes):
+def _counting_generate(monkeypatch):
+    calls = []
+
+    def generate(system, user, schema, name=None):
+        calls.append(1)
+        fleet = json.loads(Path("fleet.json").read_text(encoding="utf-8"))
+        active = find_active_voyage(fleet)
+        assert active is not None
+        return itinerary_skeleton(active[1])
+
+    monkeypatch.setattr(llm, "generate", generate)
+    return calls
+
+
+def test_live_records_extractions_without_resolving(workspace, jev_yes, monkeypatch):
+    calls = _counting_generate(monkeypatch)
     added = pipeline.run_live()
     assert added == 2
     assert pipeline.EXTRACTIONS_PATH.is_file()
-    assert pipeline.RESULT_PATH.is_file()
-    assert pipeline.BRIEF_PATH.is_file()
+    assert not pipeline.RESULT_PATH.exists()
+    assert not pipeline.BRIEF_PATH.exists()
+    assert not pipeline.RESOLVED_PATH.exists()
+    assert calls == []
     extractions = pipeline.read_extractions()
     assert len(extractions) == 2
     assert all(e.extraction_status == "complete" for e in extractions)
+
+    pipeline.run_report("KB-2603")
+    assert len(calls) == 1
+    assert pipeline.RESULT_PATH.is_file()
+    assert pipeline.BRIEF_PATH.is_file()
     assert pipeline.run_check() == []
 
 
@@ -96,6 +128,8 @@ def test_answer_resumes_ingest_after_voyage_question(workspace, monkeypatch):
     answered = pipeline.read_extractions()[-1]
     assert answered.voyage_about == "yes"
     assert answered.review is None
+    assert not pipeline.RESULT_PATH.exists()
+    pipeline.run_report("KB-2603")
     assert pipeline.run_check() == []
 
 
@@ -111,13 +145,21 @@ def test_batch_replays_prior_human_answers(workspace, monkeypatch):
         return {qid: replies[qid] for qid in questions}
 
     monkeypatch.setattr(llm, "decide", decide)
+    calls = _counting_generate(monkeypatch)
     pipeline.run_live()
     pipeline.run_answer("email_05.eml", "yes")
     before = pipeline.read_extractions()
+    pipeline.run_report("KB-2603")
+    assert len(calls) == 1
     pipeline.run_batch()
     after = pipeline.read_extractions()
     assert len(after) == len(before)
     assert after[-1].voyage_about == "yes"
+    assert calls == [1]
+    assert not pipeline.RESULT_PATH.exists()
+    assert not pipeline.RESOLVED_PATH.exists()
+    pipeline.run_report("KB-2603")
+    assert len(calls) == 2
     assert pipeline.run_check() == []
 
 
@@ -129,13 +171,100 @@ def test_run_answer_rejects_unknown_email(workspace, jev_yes):
 
 def test_run_check_reports_missing_brief(workspace, jev_yes):
     pipeline.run_live()
+    pipeline.run_report("KB-2603")
     pipeline.BRIEF_PATH.unlink()
     problems = pipeline.run_check()
     assert any("brief.md not found" in p for p in problems)
 
 
+def test_write_outputs_reuses_core_when_nothing_is_material(workspace, monkeypatch):
+    fleet = json.loads(Path("fleet.json").read_text(encoding="utf-8"))
+    active = find_active_voyage(fleet)
+    assert active is not None
+    core = itinerary_skeleton(active[1]).model_copy(update={"notes": ["kept"]})
+    pipeline.RESOLVED_PATH.write_text(core.model_dump_json(), encoding="utf-8")
+    pipeline.write_extractions(
+        [
+            EmailExtraction(
+                source_id="email_08.eml:abc",
+                filename="email_08.eml",
+                content_hash="abc",
+                message_id=None,
+                subject="noon",
+                sent_at=None,
+                extraction_status="complete",
+                voyage_about="yes",
+                vessel_name="KESTREL BAY",
+                topics={
+                    "contract": "no",
+                    "schedule": "no",
+                    "laytime": "no",
+                    "position": "no",
+                    "other": "yes",
+                },
+            )
+        ]
+    )
+
+    def boom(*args, **kwargs):
+        raise AssertionError("resolver should be skipped")
+
+    monkeypatch.setattr(pipeline, "resolve", boom)
+    answer = pipeline.write_outputs("KESTREL BAY")
+    assert answer.voyage.vessel_name == "KESTREL BAY"
+    assert "kept" in pipeline.RESOLVED_PATH.read_text(encoding="utf-8")
+
+
+def test_write_outputs_resolves_when_position_is_material(workspace, monkeypatch):
+    fleet = json.loads(Path("fleet.json").read_text(encoding="utf-8"))
+    active = find_active_voyage(fleet)
+    assert active is not None
+    pipeline.RESOLVED_PATH.write_text(
+        itinerary_skeleton(active[1]).model_dump_json(), encoding="utf-8"
+    )
+    pipeline.write_extractions(
+        [
+            EmailExtraction(
+                source_id="email_08.eml:abc",
+                filename="email_08.eml",
+                content_hash="abc",
+                message_id=None,
+                subject="noon",
+                sent_at=None,
+                extraction_status="complete",
+                voyage_about="yes",
+                vessel_name="KESTREL BAY",
+                topics={
+                    "contract": "no",
+                    "schedule": "no",
+                    "laytime": "no",
+                    "position": "yes",
+                    "other": "no",
+                },
+            )
+        ]
+    )
+    called = []
+
+    def resolve(*args, **kwargs):
+        called.append(1)
+        return itinerary_skeleton(active[1])
+
+    monkeypatch.setattr(pipeline, "resolve", resolve)
+    pipeline.write_outputs("KESTREL BAY")
+    assert called
+
+
+def test_report_rejects_an_unknown_identifier(workspace):
+    with pytest.raises(SystemExit, match="matches 'NO SUCH SHIP'"):
+        pipeline.run_report("NO SUCH SHIP")
+    with pytest.raises(SystemExit, match="no current voyage"):
+        pipeline.run_report("KESTREL POINT")
+
+
 def test_main_check_exits_on_failure(workspace, jev_yes, monkeypatch):
     pipeline.run_live()
+    pipeline.run_report("KB-2603")
     pipeline.RESULT_PATH.write_text("{}\n", encoding="utf-8")
     monkeypatch.setattr(
         "sys.argv",

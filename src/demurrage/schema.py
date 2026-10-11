@@ -13,10 +13,10 @@ def _flatten_nullable(node: dict[str, Any]) -> dict[str, Any]:
         return node
     nulls = [v for v in any_of if v.get("type") == "null"]
     others = [v for v in any_of if v.get("type") != "null"]
-    if len(nulls) != 1 or len(others) != 1:
+    if len(nulls) != 1 or len(others) != 1 or "type" not in others[0]:
         return node
-    merged = {k: v for k, v in node.items() if k != "anyOf"}
     base = dict(others[0])
+    merged = {k: v for k, v in node.items() if k != "anyOf"}
     inner_type = base.pop("type")
     merged.update(base)
     merged["type"] = [inner_type, "null"]
@@ -29,6 +29,8 @@ def strict_schema(schema: dict[str, Any]) -> dict[str, Any]:
     def walk(node: Any) -> Any:
         if not isinstance(node, dict):
             return node
+        if "$ref" in node:
+            return {"$ref": node["$ref"]}
         out = {k: v for k, v in node.items() if k != "default"}
         if "$defs" in out:
             out["$defs"] = {name: walk(defn) for name, defn in out["$defs"].items()}

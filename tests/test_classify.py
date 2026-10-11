@@ -252,3 +252,24 @@ def test_no_llm_configured_yields_pending(monkeypatch, parsed):
     e = extract(parsed, FLEET)
     assert e.extraction_status == "pending"
     assert review_for(e, FLEET) is None
+
+
+def test_position_topic_makes_no_generative_call(monkeypatch):
+    parsed = parse_eml_file(Path("emails/email_08.eml"))
+
+    def generate(*args, **kwargs):
+        raise AssertionError("classification must not call generate")
+
+    monkeypatch.setattr(llm, "generate", generate)
+    extraction, _calls = _run(
+        monkeypatch,
+        parsed,
+        {
+            "voyage": _choice("yes"),
+            "vessel": _choice("KESTREL BAY"),
+            **_all_topics("no"),
+            "position": _choice("yes"),
+        },
+    )
+    assert extraction.extraction_status == "complete"
+    assert extraction.topics["position"] == "yes"

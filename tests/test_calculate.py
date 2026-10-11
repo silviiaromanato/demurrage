@@ -1,7 +1,12 @@
 import pytest
 
 from demurrage.calculate import apply_laytime_durations, compute_demurrage
-from demurrage.models import CargoPortLaytime, ContractTerms, EvidenceRef, Stoppage
+from demurrage.models import (
+    CargoPortLaytime,
+    ContractTerms,
+    EvidenceRef,
+    Stoppage,
+)
 
 H = 3600
 
@@ -15,7 +20,9 @@ def _contract(**update) -> ContractTerms:
         "turn_time_after_nor_hours": 6,
         "demurrage_rate_per_day": 20000,
         "currency": "USD",
-        "evidence": [EvidenceRef(source_id="email_01.eml:abc", quote="recap")],
+        "evidence": [
+            EvidenceRef(source_id="email_01.eml:abc", first_line=1, last_line=1)
+        ],
     }
     return ContractTerms(**(base | update))
 

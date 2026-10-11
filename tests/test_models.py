@@ -66,18 +66,29 @@ def _properties(schema: dict, name: str) -> set[str]:
 def test_llm_schema_hides_python_filled_fields():
     schema = ResolvedVoyageCore.model_json_schema()
     laytime = _properties(schema, "CargoPortLaytime")
-    assert "nor_tendered" in laytime
+    assert "nor_tendered_written" in laytime
     assert not laytime & {
+        "nor_tendered",
+        "final_hoses_disconnected",
         "laytime_start",
         "gross_duration_seconds",
         "deducted_duration_seconds",
         "used_duration_seconds",
     }
-    assert _properties(schema, "EvidenceRef") == {"source_id", "quote"}
+    assert not _properties(schema, "PortVisit") & {"arrival", "departure"}
+    assert not _properties(schema, "Stoppage") & {"start", "end", "fraction_deducted"}
+    contract = _properties(schema, "ContractTerms")
+    assert {"laytime_allowance", "laytime_allowance_unit"} <= contract
+    assert not contract & {"status", "laytime_allowance_hours"}
+    assert _properties(schema, "EvidenceRef") == {
+        "source_id",
+        "first_line",
+        "last_line",
+    }
 
 
-def test_hidden_fields_still_load_from_result_json():
+def test_python_filled_quote_still_loads_from_result_json():
     ref = EvidenceRef.model_validate(
-        {"source_id": "s", "quote": "q", "start_offset": 1, "end_offset": 2}
+        {"source_id": "s", "first_line": 3, "last_line": 4, "quote": "a\nb"}
     )
-    assert (ref.start_offset, ref.end_offset) == (1, 2)
+    assert ref.quote == "a\nb"

@@ -26,6 +26,8 @@ StoppageCause = Literal[
 Seconds = int | None
 Computed = Annotated[Seconds, SkipJsonSchema(), Field(ge=0)]
 ComputedText = Annotated[str | None, SkipJsonSchema()]
+ComputedFraction = Annotated[float | None, SkipJsonSchema(), Field(ge=0, le=1)]
+ComputedHours = Annotated[float | None, SkipJsonSchema(), Field(gt=0)]
 
 TopicFlag = Literal["yes", "no", "uncertain"]
 
@@ -59,12 +61,6 @@ class ParsedEmail(Schema):
 
 
 # --- Stage 2: classify (LLM, three calls per email) ---
-
-
-class ChoiceResult(Schema):
-    choice: str
-    confidence: float | None = None
-    probabilities: dict[str, float] = {}
 
 
 class VoyageCheck(Schema):
@@ -130,6 +126,17 @@ class EmailReview(Schema):
         return self
 
 
+class EvidenceRef(Schema):
+    """The model cites line numbers; Python copies those lines into `quote`."""
+
+    source_id: str = Field(description="source_id of the cited email.")
+    first_line: int = Field(ge=1, description="First cited line number of the body.")
+    last_line: int = Field(
+        ge=1, description="Last cited line number (same as first_line for one line)."
+    )
+    quote: ComputedText = None
+
+
 class EmailExtraction(Schema):
     model_config = ConfigDict(extra="ignore")
 
@@ -169,16 +176,6 @@ class EmailExtraction(Schema):
 # --- Stage 3: resolve (LLM, one call per voyage) and the public answer ---
 
 
-class EvidenceRef(Schema):
-    source_id: str = Field(description="source_id of the cited email.")
-    quote: str = Field(
-        min_length=1, description="Verbatim substring of that email's body."
-    )
-    start_offset: Annotated[int | None, SkipJsonSchema()] = None
-    end_offset: Annotated[int | None, SkipJsonSchema()] = None
-    note: ComputedText = None
-
-
 class VoyageSummary(Schema):
     voyage_id: str
     vessel_name: str
@@ -198,6 +195,23 @@ class EmailAssessment(Schema):
     reason: str
 
 
+class WrittenTime(Schema):
+    """A time exactly as an email states it. Python adds the UTC offset."""
+
+    value: str = Field(
+        description=(
+            "Date and clock time as written, formatted YYYY-MM-DDTHH:MM with "
+            "no offset. Never convert time zones or add or subtract hours."
+        )
+    )
+    basis: Literal["local", "utc"] = Field(
+        description=(
+            "utc for a master's report labelled UTC/GMT/Z; local for a SOF "
+            "or agent's notice (port local time). Copy the label; do not convert."
+        )
+    )
+
+
 class DeductionRule(Schema):
     kind: str = Field(
         description=(
@@ -214,9 +228,7 @@ class DeductionRule(Schema):
             "0.0 if the period counts fully as laytime."
         ),
     )
-    quote: str = Field(
-        min_length=1, description="Verbatim contract wording for this rule."
-    )
+    evidence: EvidenceRef = Field(description="The contract lines for this rule.")
 
 
 class Amendment(Schema):
@@ -225,27 +237,21 @@ class Amendment(Schema):
         description="Previous value from the recap, if stated."
     )
     new_value: str = Field(description="Value after the addendum.")
-    quote: str = Field(
-        min_length=1, description="Verbatim quote from the addendum email."
-    )
+    evidence: EvidenceRef = Field(description="The addendum lines for this change.")
 
 
 class ContractTerms(Schema):
-    status: ContractStatus = Field(
-        description=(
-            "resolved only when laytime allowance, turn time after NOR, "
-            "demurrage rate and currency are all present with evidence; "
-            "otherwise missing, conflicted or provisional."
-        )
-    )
-    laytime_allowance_hours: float | None = Field(
+    status: Annotated[ContractStatus, SkipJsonSchema()] = "missing"
+    laytime_allowance: float | None = Field(
         default=None,
         gt=0,
-        description=(
-            "Total laytime allowance for the voyage in hours. Convert days "
-            "to hours if the recap gives days."
-        ),
+        description="Total laytime allowance, the number as written in the recap.",
     )
+    laytime_allowance_unit: Literal["hours", "days"] | None = Field(
+        default=None,
+        description="Unit of laytime_allowance as written. Do not convert.",
+    )
+    laytime_allowance_hours: ComputedHours = None
     reversible: bool | None = Field(
         default=None,
         description=(
@@ -316,17 +322,18 @@ class PortVisit(Schema):
     visit_id: str = Field(description="visit_id from the supplied itinerary.")
     port: str
     function: str
-    arrival: str | None = Field(
+    arrival_written: WrittenTime | None = Field(
         default=None,
         description=(
-            "Actual EOSP (end of sea passage) in ISO 8601 with offset. "
-            "Not anchored, NOR or all-fast. Not an ETA."
+            "Actual EOSP (end of sea passage). Not anchored, NOR or all-fast. "
+            "Not an ETA."
         ),
     )
-    departure: str | None = Field(
-        default=None,
-        description="Actual sailed / COSP time in ISO 8601 with offset. Not an ETD.",
+    departure_written: WrittenTime | None = Field(
+        default=None, description="Actual sailed / COSP time. Not an ETD."
     )
+    arrival: ComputedText = None
+    departure: ComputedText = None
     laytime_applies: bool = False
     status: PortVisitStatus = Field(
         default="missing",
@@ -343,24 +350,20 @@ class PortVisit(Schema):
 class Stoppage(Schema):
     description: str = Field(description="What happened during the stoppage.")
     cause: StoppageCause = Field(description="Primary cause category.")
-    start: str | None = Field(
-        default=None, description="Stoppage start, ISO 8601 with offset."
+    start_written: WrittenTime | None = Field(
+        default=None, description="Stoppage start."
     )
-    end: str | None = Field(
-        default=None, description="Stoppage end, ISO 8601 with offset."
-    )
-    fraction_deducted: float | None = Field(
+    end_written: WrittenTime | None = Field(default=None, description="Stoppage end.")
+    start: ComputedText = None
+    end: ComputedText = None
+    deduction_rule: str | None = Field(
         default=None,
-        ge=0,
-        le=1,
         description=(
-            "From contract deduction_rules; 0 if terminal/berth waiting "
-            "counts as laytime unless contract says otherwise."
+            "kind of the supplied deduction rule that applies; null if none "
+            "applies (the stoppage then counts in full)."
         ),
     )
-    contract_rule_quote: str | None = Field(
-        default=None, description="Quote of the deduction rule applied, if any."
-    )
+    fraction_deducted: ComputedFraction = None
     evidence: list[EvidenceRef] = Field(
         default=[], description="SOF or notice quotes for the stoppage."
     )
@@ -376,17 +379,16 @@ class Stoppage(Schema):
 class CargoPortLaytime(Schema):
     visit_id: str = Field(description="Cargo port visit_id (load or discharge).")
     port: str
-    nor_tendered: str | None = Field(
-        default=None, description="NOR tendered time, ISO 8601 with offset."
+    nor_tendered_written: WrittenTime | None = Field(
+        default=None, description="NOR tendered time."
     )
-    laytime_start: ComputedText = None
-    final_hoses_disconnected: str | None = Field(
+    final_hoses_disconnected_written: WrittenTime | None = Field(
         default=None,
-        description=(
-            "Hoses disconnected after cargo operations complete; ends laytime. "
-            "ISO 8601 with offset."
-        ),
+        description="Hoses disconnected after cargo operations; ends laytime.",
     )
+    nor_tendered: ComputedText = None
+    laytime_start: ComputedText = None
+    final_hoses_disconnected: ComputedText = None
     gross_duration_seconds: Computed = None
     stoppages: list[Stoppage] = []
     deducted_duration_seconds: Computed = None
@@ -414,9 +416,21 @@ class CargoPortLaytime(Schema):
 
 
 class LatestPosition(Schema):
-    reported_at: str | None
-    description: str | None
-    evidence: list[EvidenceRef] = []
+    reported_at_written: WrittenTime | None = Field(
+        default=None,
+        description=(
+            "When the vessel was observed at this position: the time in the "
+            "position report, not the email Date header or sent_at."
+        )
+    )
+    reported_at: ComputedText = None
+    description: str | None = Field(
+        description="Where the vessel was, in the email's own words."
+    )
+    evidence: list[EvidenceRef] = Field(
+        default=[],
+        description="Cited lines of the position report with the latest reported_at.",
+    )
 
 
 class DemurrageAnswer(Schema):
@@ -429,7 +443,6 @@ class DemurrageAnswer(Schema):
     amount_owed: float | None = Field(default=None, ge=0)
     calculation_formula: str | None = None
     status: AnswerStatus = "incomplete"
-    evidence: list[EvidenceRef] = []
 
     @model_validator(mode="after")
     def _arithmetic_is_consistent(self) -> DemurrageAnswer:
@@ -462,8 +475,43 @@ class ResolverQuestion(Schema):
     options: list[str] = Field(min_length=1)
 
 
+class ContractDraft(Schema):
+    """Contract terms from the voyage emails classified as contract."""
+
+    contract: ContractTerms
+    questions: list[ResolverQuestion] = Field(
+        default=[], description="Questions for a human when contract sources disagree."
+    )
+    notes: list[str] = []
+
+
+class LaytimeDraft(Schema):
+    """Port calls and cargo laytime from the voyage's non-contract emails."""
+
+    port_visits: list[PortVisit] = Field(
+        description="One row per itinerary visit, in itinerary order."
+    )
+    laytime_by_cargo_port: list[CargoPortLaytime] = Field(
+        description=(
+            "One row per load or discharge visit. Stoppages name the supplied "
+            "deduction rule that applies."
+        )
+    )
+    latest_position: LatestPosition | None = Field(
+        default=None,
+        description=(
+            "The position report with the latest reported_at. Email sent time "
+            "is not used. Null if no position report exists."
+        ),
+    )
+    questions: list[ResolverQuestion] = Field(
+        default=[], description="Questions for a human when port sources disagree."
+    )
+    notes: list[str] = []
+
+
 class ResolvedVoyageCore(Schema):
-    """Resolver output (one LLM call per voyage). Durations are filled by Python."""
+    """Assembled from the contract call and the laytime call. Durations stay null."""
 
     contract: ContractTerms
     port_visits: list[PortVisit] = Field(
@@ -472,6 +520,7 @@ class ResolvedVoyageCore(Schema):
     laytime_by_cargo_port: list[CargoPortLaytime] = Field(
         description="One row per load or discharge visit."
     )
+    latest_position: LatestPosition | None = None
     questions: list[ResolverQuestion] = Field(
         default=[], description="Questions for a human when sources disagree."
     )
@@ -487,7 +536,6 @@ class VoyageAnswer(Schema):
     latest_position: LatestPosition | None
     demurrage: DemurrageAnswer
     review_items: list[ReviewItem]
-    evidence_index: list[EvidenceRef] = []
 
     @model_validator(mode="after")
     def _laytime_only_for_cargo_visits(self) -> VoyageAnswer:

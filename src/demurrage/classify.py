@@ -19,12 +19,24 @@ from demurrage.models import (
     VoyageCheck,
 )
 
+VOYAGE_INSTRUCTIONS = (
+    "Is this Halcyon Tankers email about a vessel voyage (its contract, "
+    "port calls, cargo operations, laytime or position)?"
+)
+VOYAGE_CRITERIA = {
+    "yes": "The email is about a voyage of a vessel.",
+    "no": "The email is not about a vessel voyage.",
+    "uncertain": "Cannot tell from this email whether it is about a voyage.",
+}
+VESSEL_INSTRUCTIONS = (
+    "Which Halcyon fleet vessel is this email about? Choose uncertain if "
+    "you cannot tell, or not_our_vessel if it is clearly another vessel."
+)
 TOPIC_CRITERIA = {
     "yes": "The email discusses this topic.",
     "no": "The email does not discuss this topic.",
     "unknown": "Cannot tell from this email.",
 }
-
 TOPIC_INSTRUCTIONS = {
     "contract": (
         "Does this email state or amend the agreed charter-party terms themselves "
@@ -101,13 +113,8 @@ def check_voyage(parsed: ParsedEmail) -> VoyageCheck:
     answer = llm.choose(
         email_state(parsed),
         "voyage",
-        "Is this Halcyon Tankers email about a vessel voyage (its contract, "
-        "port calls, cargo operations, laytime or position)?",
-        {
-            "yes": "The email is about a voyage of a vessel.",
-            "no": "The email is not about a vessel voyage.",
-            "uncertain": "Cannot tell from this email whether it is about a voyage.",
-        },
+        VOYAGE_INSTRUCTIONS,
+        VOYAGE_CRITERIA,
     )
     return VoyageCheck.from_jev(answer)
 
@@ -116,8 +123,7 @@ def check_vessel(parsed: ParsedEmail, fleet: dict[str, Any]) -> VesselCheck:
     answer = llm.choose(
         email_state(parsed),
         "vessel",
-        "Which Halcyon fleet vessel is this email about? Choose uncertain if "
-        "you cannot tell, or not_our_vessel if it is clearly another vessel.",
+        VESSEL_INSTRUCTIONS,
         vessel_criteria(fleet),
     )
     return VesselCheck.from_jev(answer)

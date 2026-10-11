@@ -1,4 +1,8 @@
-"""Batch and live pipelines, plus the `demurrage` CLI."""
+"""Ingest pipeline and voyage-answer pipeline, plus the `demurrage` CLI.
+
+Batch and live only record extractions. The resolver runs when the user
+asks for the voyage answer (`demurrage report <voyage number or vessel name>`).
+"""
 
 from __future__ import annotations
 
@@ -12,16 +16,15 @@ from pydantic import ValidationError
 
 from demurrage.answer import build_voyage_answer, render_brief
 from demurrage.classify import extract
-from demurrage.fleet import extractions_for_active_voyage, find_active_voyage
+from demurrage.fleet import UnknownVoyage, emails_for_voyage_no, find_voyage
 from demurrage.models import (
-    ContractTerms,
     EmailExtraction,
     EmailReview,
     ResolvedVoyageCore,
     VoyageAnswer,
 )
 from demurrage.parse import parse_eml_file, source_id_for
-from demurrage.resolver import resolve
+from demurrage.resolver import bodies_for, itinerary_skeleton, resolve
 from demurrage.reviews import advance_extraction, replay_reviews, review_for
 from demurrage.validate import (
     require,
@@ -37,6 +40,8 @@ FLEET_PATH = Path("fleet.json")
 EXTRACTIONS_PATH = Path("extractions.jsonl")
 RESULT_PATH = Path("result.json")
 BRIEF_PATH = Path("brief.md")
+RESOLVED_PATH = Path("resolved.json")
+MATERIAL_TOPICS = ("contract", "schedule", "laytime", "position")
 
 
 def read_extractions() -> list[EmailExtraction]:
@@ -62,22 +67,55 @@ def load_fleet() -> dict[str, Any]:
     return json.loads(FLEET_PATH.read_text(encoding="utf-8"))
 
 
-def write_outputs() -> VoyageAnswer:
-    """Resolve the voyage, then rebuild the answer from all recorded extractions."""
+def needs_resolve(extractions: list[EmailExtraction]) -> bool:
+    """True when an email can change contract, schedule, laytime, or position."""
+    return any(
+        e.topics.get(topic) == "yes" for e in extractions for topic in MATERIAL_TOPICS
+    )
+
+
+def _core_for(
+    vessel: dict[str, Any],
+    voyage: dict[str, Any],
+    voyage_emails: list[EmailExtraction],
+) -> ResolvedVoyageCore:
+    """Contract call, then laytime call.
+
+    Reuse a saved core when nothing material changed.
+    """
+    if needs_resolve(voyage_emails):
+        resolved = resolve(voyage, voyage_emails, vessel=vessel)
+        RESOLVED_PATH.write_text(
+            resolved.model_dump_json(indent=2) + "\n", encoding="utf-8"
+        )
+        return resolved
+    if RESOLVED_PATH.is_file():
+        return ResolvedVoyageCore.model_validate_json(
+            RESOLVED_PATH.read_text(encoding="utf-8")
+        )
+    return itinerary_skeleton(voyage)
+
+
+def write_outputs(identifier: str) -> VoyageAnswer:
+    """Resolve the voyage, validate, then write result.json and brief.md.
+
+    ``identifier`` is a voyage number or a vessel name.
+    """
     fleet = load_fleet()
     extractions = read_extractions()
-    active = find_active_voyage(fleet)
-    voyage_extractions = extractions_for_active_voyage(extractions, fleet)
-    if active:
-        resolved = resolve(active[1], voyage_extractions)
-        require("resolve", validate_resolved(resolved, active[1], voyage_extractions))
-    else:
-        resolved = ResolvedVoyageCore(
-            contract=ContractTerms(status="missing"),
-            port_visits=[],
-            laytime_by_cargo_port=[],
-        )
-    answer = build_voyage_answer(fleet, extractions, resolved)
+    try:
+        vessel, voyage = find_voyage(fleet, identifier)
+    except UnknownVoyage as exc:
+        raise SystemExit(str(exc)) from exc
+    voyage_emails = emails_for_voyage_no(
+        extractions, fleet, str(voyage.get("voyage_no", ""))
+    )
+    resolved = _core_for(vessel, voyage, voyage_emails)
+    require(
+        "resolve",
+        validate_resolved(resolved, voyage, voyage_emails, bodies_for(voyage_emails)),
+    )
+    answer = build_voyage_answer(fleet, extractions, resolved, vessel, voyage)
     require("answer", validate_answer(answer, extractions))
     RESULT_PATH.write_text(answer.model_dump_json(indent=2) + "\n", encoding="utf-8")
     BRIEF_PATH.write_text(render_brief(answer), encoding="utf-8")
@@ -87,7 +125,7 @@ def write_outputs() -> VoyageAnswer:
 def ingest(
     path: Path, known: set[str], prior_answers: dict[str, list[EmailReview]]
 ) -> EmailExtraction | None:
-    """Parse, extract, append and rebuild for one email; skip if already recorded."""
+    """Parse, extract and append one email; skip if already recorded."""
     source_id = source_id_for(path)
     if source_id in known:
         return None
@@ -103,7 +141,6 @@ def ingest(
     with EXTRACTIONS_PATH.open("a", encoding="utf-8") as f:
         f.write(_line(extraction))
     known.add(source_id)
-    write_outputs()
     return extraction
 
 
@@ -137,10 +174,29 @@ def run_live(
 
 
 def run_batch() -> None:
-    """Rebuild from scratch, reusing human answers already given for the same email."""
+    """Rebuild extractions from scratch, reusing human answers for the same email.
+
+    Does not call the resolver. A previous voyage answer is removed so it
+    cannot be read against the rebuilt log; run `report` to build a new one.
+    """
     prior_answers = {e.source_id: e.answered_reviews for e in read_extractions()}
-    EXTRACTIONS_PATH.unlink(missing_ok=True)
+    for path in (EXTRACTIONS_PATH, RESOLVED_PATH, RESULT_PATH, BRIEF_PATH):
+        path.unlink(missing_ok=True)
     run_live(prior_answers=prior_answers)
+
+
+def run_report(identifier: str) -> VoyageAnswer:
+    """Resolve the named voyage and write result.json and brief.md.
+
+    ``identifier`` is a voyage number or a vessel name.
+    """
+    answer = write_outputs(identifier)
+    voyage = answer.voyage
+    print(
+        "report: wrote result.json and brief.md "
+        f"({voyage.vessel_name} {voyage.voyage_id}, {voyage.status})"
+    )
+    return answer
 
 
 def run_answer(email: str, answer: str) -> None:
@@ -173,7 +229,6 @@ def run_answer(email: str, answer: str) -> None:
         [*extractions[i].answered_reviews, answered],
     )
     write_extractions(extractions)
-    write_outputs()
     print(f"answer: recorded for {extractions[i].filename}; resuming")
     run_live()
 
@@ -196,7 +251,15 @@ def run_check() -> list[str]:
                 problems += [
                     f"{e.filename}: {p}" for p in validate_extraction(e, parsed)
                 ]
-        if active := find_active_voyage(load_fleet()):
+        try:
+            _vessel, voyage = find_voyage(load_fleet(), answer.voyage.voyage_id)
+        except UnknownVoyage:
+            if answer.voyage.voyage_id != "unknown":
+                problems.append(
+                    f"voyage {answer.voyage.voyage_id!r} is not a current voyage "
+                    "in fleet.json"
+                )
+        else:
             core = ResolvedVoyageCore(
                 contract=answer.contract,
                 port_visits=answer.port_visits,
@@ -212,8 +275,11 @@ def run_check() -> list[str]:
                     )
                     for lt in answer.laytime_by_cargo_port
                 ],
+                latest_position=answer.latest_position,
             )
-            problems += validate_resolved(core, active[1], extractions)
+            problems += validate_resolved(
+                core, voyage, extractions, bodies_for(extractions)
+            )
         problems += validate_answer(answer, extractions)
         if BRIEF_PATH.is_file():
             problems += validate_brief(BRIEF_PATH.read_text("utf-8"), answer)
@@ -226,9 +292,11 @@ def run_check() -> list[str]:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Demurrage batch and live pipelines")
+    parser = argparse.ArgumentParser(
+        description="Demurrage ingest and voyage-answer pipelines"
+    )
     sub = parser.add_subparsers(dest="command", required=True)
-    sub.add_parser("batch", help="Process all emails in emails/ from scratch")
+    sub.add_parser("batch", help="Classify all emails in emails/ from scratch")
     live = sub.add_parser("live", help="Append new emails to extractions.jsonl")
     live.add_argument(
         "email_paths",
@@ -239,6 +307,14 @@ def main() -> None:
     answer = sub.add_parser("answer", help="Answer the open question on an email")
     answer.add_argument("email", help="filename or source_id of the email")
     answer.add_argument("answer", help="one of the options listed in the question")
+    report = sub.add_parser(
+        "report",
+        help="Resolve a voyage and write result.json and brief.md",
+    )
+    report.add_argument(
+        "voyage",
+        help="Voyage number (KB-2603) or vessel name (KESTREL BAY)",
+    )
     sub.add_parser("check", help="Validate saved outputs against each other")
 
     args = parser.parse_args()
@@ -248,5 +324,7 @@ def main() -> None:
         run_live(args.email_paths)
     elif args.command == "answer":
         run_answer(args.email, args.answer)
+    elif args.command == "report":
+        run_report(args.voyage)
     elif run_check():
         raise SystemExit(1)
