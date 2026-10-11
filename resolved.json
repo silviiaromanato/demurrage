@@ -1,0 +1,499 @@
+{
+  "contract": {
+    "status": "resolved",
+    "laytime_allowance": 72.0,
+    "laytime_allowance_unit": "hours",
+    "laytime_allowance_hours": 72.0,
+    "reversible": true,
+    "turn_time_after_nor_hours": 6.0,
+    "laytime_end_event": "FINAL HOSES DISCONNECTED",
+    "demurrage_rate_per_day": 25500.0,
+    "currency": "USD",
+    "pro_rata": true,
+    "deduction_rules": [
+      {
+        "kind": "Shifting from anchorage to berth (anchor aweigh to all fast)",
+        "fraction_deducted": 1.0,
+        "evidence": {
+          "source_id": "email_01.eml:8e39c594b82c63e8",
+          "first_line": 19,
+          "last_line": 20,
+          "quote": "- TIME USED SHIFTING FROM ANCHORAGE TO BERTH (ANCHOR AWEIGH TO ALL FAST) NOT TO COUNT\n  AS LAYTIME."
+        }
+      },
+      {
+        "kind": "Breakdown or inefficiency of vessel's equipment",
+        "fraction_deducted": 1.0,
+        "evidence": {
+          "source_id": "email_01.eml:8e39c594b82c63e8",
+          "first_line": 21,
+          "last_line": 22,
+          "quote": "- TIME LOST DUE TO BREAKDOWN OR INEFFICIENCY OF VESSEL'S EQUIPMENT NOT TO COUNT AS\n  LAYTIME."
+        }
+      },
+      {
+        "kind": "Adverse weather preventing cargo operations",
+        "fraction_deducted": 0.5,
+        "evidence": {
+          "source_id": "email_01.eml:8e39c594b82c63e8",
+          "first_line": 23,
+          "last_line": 23,
+          "quote": "- TIME LOST DUE TO ADVERSE WEATHER PREVENTING CARGO OPERATIONS TO COUNT AS HALF LAYTIME."
+        }
+      },
+      {
+        "kind": "Terminal or shore reasons and waiting for berth",
+        "fraction_deducted": 0.0,
+        "evidence": {
+          "source_id": "email_01.eml:8e39c594b82c63e8",
+          "first_line": 24,
+          "last_line": 24,
+          "quote": "- TIME LOST DUE TO TERMINAL / SHORE REASONS AND WAITING FOR BERTH TO COUNT IN FULL."
+        }
+      }
+    ],
+    "exceptions_continue_on_demurrage": true,
+    "amendments": [
+      {
+        "term": "Demurrage rate per day",
+        "old_value": "USD 24,000 per day pro rata",
+        "new_value": "USD 25,500 per day pro rata",
+        "evidence": {
+          "source_id": "email_05.eml:2d42748f14683793",
+          "first_line": 7,
+          "last_line": 7,
+          "quote": "- DEMURRAGE RATE AMENDED TO USD 25,500 PER DAY PRO RATA, IN LIEU OF USD 24,000."
+        }
+      }
+    ],
+    "evidence": [
+      {
+        "source_id": "email_01.eml:8e39c594b82c63e8",
+        "first_line": 13,
+        "last_line": 13,
+        "quote": "LAYTIME       : 72 HOURS SHINC, REVERSIBLE LOAD AND DISCHARGE"
+      },
+      {
+        "source_id": "email_01.eml:8e39c594b82c63e8",
+        "first_line": 14,
+        "last_line": 14,
+        "quote": "NOR           : LAYTIME TO COMMENCE 6 HOURS AFTER NOR TENDERED, BERTH OR NO BERTH"
+      },
+      {
+        "source_id": "email_01.eml:8e39c594b82c63e8",
+        "first_line": 15,
+        "last_line": 15,
+        "quote": "DEMURRAGE     : USD 24,000 PER DAY PRO RATA"
+      },
+      {
+        "source_id": "email_01.eml:8e39c594b82c63e8",
+        "first_line": 19,
+        "last_line": 20,
+        "quote": "- TIME USED SHIFTING FROM ANCHORAGE TO BERTH (ANCHOR AWEIGH TO ALL FAST) NOT TO COUNT\n  AS LAYTIME."
+      },
+      {
+        "source_id": "email_01.eml:8e39c594b82c63e8",
+        "first_line": 21,
+        "last_line": 22,
+        "quote": "- TIME LOST DUE TO BREAKDOWN OR INEFFICIENCY OF VESSEL'S EQUIPMENT NOT TO COUNT AS\n  LAYTIME."
+      },
+      {
+        "source_id": "email_01.eml:8e39c594b82c63e8",
+        "first_line": 23,
+        "last_line": 23,
+        "quote": "- TIME LOST DUE TO ADVERSE WEATHER PREVENTING CARGO OPERATIONS TO COUNT AS HALF LAYTIME."
+      },
+      {
+        "source_id": "email_01.eml:8e39c594b82c63e8",
+        "first_line": 24,
+        "last_line": 24,
+        "quote": "- TIME LOST DUE TO TERMINAL / SHORE REASONS AND WAITING FOR BERTH TO COUNT IN FULL."
+      },
+      {
+        "source_id": "email_01.eml:8e39c594b82c63e8",
+        "first_line": 25,
+        "last_line": 25,
+        "quote": "- THE ABOVE EXCEPTIONS TO APPLY EQUALLY WHILE THE VESSEL IS ON DEMURRAGE."
+      },
+      {
+        "source_id": "email_01.eml:8e39c594b82c63e8",
+        "first_line": 26,
+        "last_line": 26,
+        "quote": "- LAYTIME TO END ON FINAL HOSES DISCONNECTED."
+      },
+      {
+        "source_id": "email_05.eml:2d42748f14683793",
+        "first_line": 7,
+        "last_line": 7,
+        "quote": "- DEMURRAGE RATE AMENDED TO USD 25,500 PER DAY PRO RATA, IN LIEU OF USD 24,000."
+      }
+    ]
+  },
+  "port_visits": [
+    {
+      "visit_id": "pv-1",
+      "port": "Antwerp",
+      "function": "load",
+      "arrival_written": {
+        "value": "2026-01-30T04:30",
+        "basis": "local"
+      },
+      "departure_written": {
+        "value": "2026-02-01T12:00",
+        "basis": "local"
+      },
+      "arrival": "2026-01-30T04:30:00+01:00",
+      "departure": "2026-02-01T12:00:00+01:00",
+      "laytime_applies": true,
+      "status": "final",
+      "evidence": [
+        {
+          "source_id": "email_06.eml:898577d89e7e8523",
+          "first_line": 8,
+          "last_line": 8,
+          "quote": "End of sea passage (Wandelaar)                 30 Jan 2026   04:30"
+        },
+        {
+          "source_id": "email_06.eml:898577d89e7e8523",
+          "first_line": 24,
+          "last_line": 24,
+          "quote": "Pilot on board / vessel sailed                 01 Feb 2026   12:00"
+        }
+      ]
+    },
+    {
+      "visit_id": "pv-2",
+      "port": "Gibraltar",
+      "function": "bunkering",
+      "arrival_written": null,
+      "departure_written": {
+        "value": "2026-02-06T04:30",
+        "basis": "local"
+      },
+      "arrival": null,
+      "departure": "2026-02-06T04:30:00+01:00",
+      "laytime_applies": false,
+      "status": "provisional",
+      "evidence": [
+        {
+          "source_id": "email_09.eml:0d00ae69e001c749",
+          "first_line": 5,
+          "last_line": 5,
+          "quote": "Arrived Eastern anchorage        05/02  20:00"
+        },
+        {
+          "source_id": "email_09.eml:0d00ae69e001c749",
+          "first_line": 8,
+          "last_line": 8,
+          "quote": "Vessel sailed for Cotonou        06/02  04:30"
+        }
+      ]
+    },
+    {
+      "visit_id": "pv-3",
+      "port": "Cotonou",
+      "function": "discharge",
+      "arrival_written": {
+        "value": "2026-02-15T16:20",
+        "basis": "local"
+      },
+      "departure_written": {
+        "value": "2026-02-20T07:00",
+        "basis": "local"
+      },
+      "arrival": "2026-02-15T16:20:00+01:00",
+      "departure": "2026-02-20T07:00:00+01:00",
+      "laytime_applies": true,
+      "status": "final",
+      "evidence": [
+        {
+          "source_id": "email_19.eml:f426b565e6e02ee0",
+          "first_line": 6,
+          "last_line": 6,
+          "quote": "15/02/2026 16:20   EOSP"
+        },
+        {
+          "source_id": "email_19.eml:f426b565e6e02ee0",
+          "first_line": 23,
+          "last_line": 23,
+          "quote": "20/02/2026 07:00   Vessel sailed"
+        }
+      ]
+    }
+  ],
+  "laytime_by_cargo_port": [
+    {
+      "visit_id": "pv-1",
+      "port": "Antwerp",
+      "nor_tendered_written": {
+        "value": "2026-01-30T11:00",
+        "basis": "local"
+      },
+      "final_hoses_disconnected_written": {
+        "value": "2026-02-01T09:30",
+        "basis": "local"
+      },
+      "nor_tendered": "2026-01-30T11:00:00+01:00",
+      "laytime_start": null,
+      "final_hoses_disconnected": "2026-02-01T09:30:00+01:00",
+      "gross_duration_seconds": null,
+      "stoppages": [
+        {
+          "description": "Loading stopped for shore tank changeover at the terminal's request.",
+          "cause": "terminal",
+          "start_written": {
+            "value": "2026-01-31T02:00",
+            "basis": "local"
+          },
+          "end_written": {
+            "value": "2026-01-31T04:00",
+            "basis": "local"
+          },
+          "start": "2026-01-31T02:00:00+01:00",
+          "end": "2026-01-31T04:00:00+01:00",
+          "deduction_rule": "Terminal or shore reasons and waiting for berth",
+          "fraction_deducted": 0.0,
+          "evidence": [
+            {
+              "source_id": "email_06.eml:898577d89e7e8523",
+              "first_line": 17,
+              "last_line": 18,
+              "quote": "Loading stopped - shore tank changeover        31 Jan 2026   02:00\nLoading resumed                                31 Jan 2026   04:00"
+            },
+            {
+              "source_id": "email_06.eml:898577d89e7e8523",
+              "first_line": 29,
+              "last_line": 29,
+              "quote": "1. Shore tank changeover at the terminal's request."
+            }
+          ]
+        },
+        {
+          "description": "Loading stopped for a leaking vessel manifold valve, repaired by ship's crew.",
+          "cause": "vessel",
+          "start_written": {
+            "value": "2026-01-31T15:00",
+            "basis": "local"
+          },
+          "end_written": {
+            "value": "2026-01-31T17:30",
+            "basis": "local"
+          },
+          "start": "2026-01-31T15:00:00+01:00",
+          "end": "2026-01-31T17:30:00+01:00",
+          "deduction_rule": "Breakdown or inefficiency of vessel's equipment",
+          "fraction_deducted": 1.0,
+          "evidence": [
+            {
+              "source_id": "email_06.eml:898577d89e7e8523",
+              "first_line": 19,
+              "last_line": 20,
+              "quote": "Loading stopped - leaking manifold valve       31 Jan 2026   15:00\nLoading resumed                                31 Jan 2026   17:30"
+            },
+            {
+              "source_id": "email_06.eml:898577d89e7e8523",
+              "first_line": 30,
+              "last_line": 30,
+              "quote": "2. Manifold valve leak on the vessel's side, repaired by ship's crew. Terminal"
+            }
+          ]
+        }
+      ],
+      "deducted_duration_seconds": null,
+      "used_duration_seconds": null,
+      "calculation_notes": [
+        "Final Antwerp SOF supplies the NOR, hose-disconnection and stoppage times. The shore tank changeover counts in full under its supplied rule."
+      ],
+      "status": "final",
+      "evidence": [
+        {
+          "source_id": "email_06.eml:898577d89e7e8523",
+          "first_line": 11,
+          "last_line": 11,
+          "quote": "NOR tendered                                   30 Jan 2026   11:00"
+        },
+        {
+          "source_id": "email_06.eml:898577d89e7e8523",
+          "first_line": 22,
+          "last_line": 22,
+          "quote": "Hoses disconnected                             01 Feb 2026   09:30"
+        }
+      ]
+    },
+    {
+      "visit_id": "pv-3",
+      "port": "Cotonou",
+      "nor_tendered_written": {
+        "value": "2026-02-15T17:30",
+        "basis": "local"
+      },
+      "final_hoses_disconnected_written": {
+        "value": "2026-02-20T03:30",
+        "basis": "local"
+      },
+      "nor_tendered": "2026-02-15T17:30:00+01:00",
+      "laytime_start": null,
+      "final_hoses_disconnected": "2026-02-20T03:30:00+01:00",
+      "gross_duration_seconds": null,
+      "stoppages": [
+        {
+          "description": "Waiting at anchorage for a berth while the jetty was occupied.",
+          "cause": "berth_waiting",
+          "start_written": {
+            "value": "2026-02-15T17:30",
+            "basis": "local"
+          },
+          "end_written": {
+            "value": "2026-02-18T06:00",
+            "basis": "local"
+          },
+          "start": "2026-02-15T17:30:00+01:00",
+          "end": "2026-02-18T06:00:00+01:00",
+          "deduction_rule": "Terminal or shore reasons and waiting for berth",
+          "fraction_deducted": 0.0,
+          "evidence": [
+            {
+              "source_id": "email_19.eml:f426b565e6e02ee0",
+              "first_line": 9,
+              "last_line": 9,
+              "quote": "15/02 17:30 - 18/02 06:00   Vessel waiting at anchorage for berth (jetty occupied)"
+            }
+          ]
+        },
+        {
+          "description": "Shifting from anchorage to the Oil Jetty, anchor aweigh to all fast.",
+          "cause": "shifting",
+          "start_written": {
+            "value": "2026-02-18T06:00",
+            "basis": "local"
+          },
+          "end_written": {
+            "value": "2026-02-18T08:30",
+            "basis": "local"
+          },
+          "start": "2026-02-18T06:00:00+01:00",
+          "end": "2026-02-18T08:30:00+01:00",
+          "deduction_rule": "Shifting from anchorage to berth (anchor aweigh to all fast)",
+          "fraction_deducted": 1.0,
+          "evidence": [
+            {
+              "source_id": "email_19.eml:f426b565e6e02ee0",
+              "first_line": 10,
+              "last_line": 10,
+              "quote": "18/02/2026 06:00   Anchor aweigh"
+            },
+            {
+              "source_id": "email_19.eml:f426b565e6e02ee0",
+              "first_line": 12,
+              "last_line": 12,
+              "quote": "18/02/2026 08:30   All fast Oil Jetty"
+            }
+          ]
+        },
+        {
+          "description": "Discharge suspended due to heavy rain and thunderstorm.",
+          "cause": "weather",
+          "start_written": {
+            "value": "2026-02-18T21:00",
+            "basis": "local"
+          },
+          "end_written": {
+            "value": "2026-02-19T01:00",
+            "basis": "local"
+          },
+          "start": "2026-02-18T21:00:00+01:00",
+          "end": "2026-02-19T01:00:00+01:00",
+          "deduction_rule": "Adverse weather preventing cargo operations",
+          "fraction_deducted": 0.5,
+          "evidence": [
+            {
+              "source_id": "email_19.eml:f426b565e6e02ee0",
+              "first_line": 15,
+              "last_line": 16,
+              "quote": "18/02/2026 21:00   Discharge stopped - heavy rain / thunderstorm, operations suspended due to weather\n19/02/2026 01:00   Discharge resumed"
+            }
+          ]
+        },
+        {
+          "description": "Discharge stopped for a terminal-side shore line pressure restriction.",
+          "cause": "terminal",
+          "start_written": {
+            "value": "2026-02-19T03:00",
+            "basis": "local"
+          },
+          "end_written": {
+            "value": "2026-02-19T05:00",
+            "basis": "local"
+          },
+          "start": "2026-02-19T03:00:00+01:00",
+          "end": "2026-02-19T05:00:00+01:00",
+          "deduction_rule": "Terminal or shore reasons and waiting for berth",
+          "fraction_deducted": 0.0,
+          "evidence": [
+            {
+              "source_id": "email_19.eml:f426b565e6e02ee0",
+              "first_line": 17,
+              "last_line": 18,
+              "quote": "19/02/2026 03:00   Discharge stopped - shore line pressure restriction (terminal)\n19/02/2026 05:00   Discharge resumed"
+            },
+            {
+              "source_id": "email_19.eml:f426b565e6e02ee0",
+              "first_line": 30,
+              "last_line": 30,
+              "quote": "2. Shore line pressure restriction at the terminal's side."
+            }
+          ]
+        }
+      ],
+      "deducted_duration_seconds": null,
+      "used_duration_seconds": null,
+      "calculation_notes": [
+        "The final SOF supersedes the interim SOF's weather-resumption time of 19/02 00:30 (email_17.eml:7b5b9591f32256ef, line 16); the final SOF corrects it to 01:00 (email_19.eml:f426b565e6e02ee0, lines 27–29).",
+        "The master's UTC hose-disconnection report of 20/0230 (email_18.eml:603c14402a80dc62, line 4) is equivalent to the final SOF's 20/02 03:30 local. Waiting for berth and the shore restriction count in full under their supplied rule."
+      ],
+      "status": "final",
+      "evidence": [
+        {
+          "source_id": "email_19.eml:f426b565e6e02ee0",
+          "first_line": 8,
+          "last_line": 8,
+          "quote": "15/02/2026 17:30   NOR tendered"
+        },
+        {
+          "source_id": "email_19.eml:f426b565e6e02ee0",
+          "first_line": 20,
+          "last_line": 20,
+          "quote": "20/02/2026 03:30   Hoses disconnected"
+        }
+      ]
+    }
+  ],
+  "latest_position": {
+    "reported_at_written": {
+      "value": "2026-02-15T16:10",
+      "basis": "utc"
+    },
+    "reported_at": "2026-02-15T16:10:00+00:00",
+    "description": "Anchored at Cotonou outer anchorage, POSN 06-17.2N 002-25.8E.",
+    "evidence": [
+      {
+        "source_id": "email_15.eml:414849b3bd95d14f",
+        "first_line": 1,
+        "last_line": 1,
+        "quote": "ARRIVAL REPORT - ALL TIMES UTC"
+      },
+      {
+        "source_id": "email_15.eml:414849b3bd95d14f",
+        "first_line": 4,
+        "last_line": 4,
+        "quote": "ANCHORED       15/1610  COTONOU OUTER ANCHORAGE  POSN 06-17.2N 002-25.8E"
+      }
+    ]
+  },
+  "questions": [],
+  "notes": [
+    "The recap's USD 24,000 per day demurrage rate is superseded by Addendum No.1; its other terms remain unaltered.",
+    "Gibraltar's agent reports arrival at Eastern anchorage (email_09.eml:0d00ae69e001c749, line 5), but gives no EOSP time. Its arrival_written is therefore null; the reported sailing time is retained.",
+    "The master's Cotonou EOSP of 15/1520 UTC (email_15.eml:414849b3bd95d14f, lines 1 and 3) is equivalent to the final SOF's 15/02 16:20 local. The master's COSP of 20/0600 UTC (email_18.eml:603c14402a80dc62, lines 1 and 5) is equivalent to the final SOF's 20/02 07:00 local sailing."
+  ]
+}
