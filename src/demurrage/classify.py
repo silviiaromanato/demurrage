@@ -42,9 +42,9 @@ TOPIC_INSTRUCTIONS = {
         "Does this email state or amend the agreed charter-party terms themselves "
         "(a recap or addendum)? That includes anything the contract defines: "
         "vessel, charterer, cargo, laycan, contracted load and discharge ports, "
-        "freight, laytime allowance and basis (e.g. SHINC, reversible), turn time "
+        "laytime allowance and basis (e.g. SHINC, reversible), turn time "
         "after NOR, when laytime ends, demurrage rate and pro rata, despatch, "
-        "deduction rules, exceptions while on demurrage, claim time bar. "
+        "deduction rules, exceptions while on demurrage. "
         "Do not count reports of events that later happened under those terms."
     ),
     "schedule": (
@@ -62,7 +62,7 @@ TOPIC_INSTRUCTIONS = {
     ),
     "position": (
         "Does this email report where the vessel is, was, or is expected to be "
-        "(noon or position report, coordinates, speed, distance to go)?"
+        "(a position report)?"
     ),
     "other": (
         "Does this email report some other real-world event or update that is "

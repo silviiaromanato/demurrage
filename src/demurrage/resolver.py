@@ -42,7 +42,7 @@ Rules:
 - Email delivery order never decides which value wins.
 - Equal-authority disagreement stays conflicted: add a question, do not pick.
 - Losing and superseded evidence stays visible in notes.
-{CITATION_RULE}- The laytime allowance is the number and unit as written (e.g. 72 hours,
+{CITATION_RULE}- The laytime allowance is the number and unit as written (e.g. 48 hours,
   3 days); do not convert days to hours.
 - Do not fill laytime durations or demurrage.
 """
@@ -63,26 +63,23 @@ Rules:
 - Losing and superseded evidence stays visible in notes.
 {CITATION_RULE}- Use visit_id from the itinerary. One port_visits row per visit, in
   order. One laytime row per load or discharge visit.
-- Do not deduct shifting (anchor aweigh to all fast). That transit counts
-  in full as laytime. Waiting at anchorage because the berth is occupied
-  is not shifting and also counts in full. Terminal delays count as
-  laytime unless a deduction rule says otherwise.
 - A stoppage's deduction_rule is the kind of the supplied rule that applies,
-  or null if none applies.
+  or null if none applies (the stoppage then counts in full as laytime).
+  Delays caused by the terminal or by waiting for a berth normally count
+  in full unless a supplied rule says otherwise.
 - Every time goes in a *_written field. value is the date and clock as the
   cited line writes them, formatted YYYY-MM-DDTHH:MM with no offset
-  (e.g. "15/1520" on 15 Feb 2026 is 2026-02-15T15:20). Do not convert.
+  (e.g. "15/1630" is the 15th of the current month at 16:30). Do not convert.
 - basis is who wrote the time, not a calculation:
   SOFs and agents' notices are local time of the port (basis local), even
   when they say WAT or CET.
-  The master's arrival, departure and noon reports are UTC when labelled
-  UTC, GMT or Z (basis utc). A compact "15/1630" under "ALL TIMES UTC"
+  Masters often write times in UTC, also written GMT or Z (basis utc)
+  when so labelled. Check the label. A compact "15/1630" labelled UTC
   is 16:30 UTC.
   The email Date header is when the mail was sent; it is not an event time.
 - latest_position is the position report with the latest reported_at
   (when the vessel was observed there). Do not use the email Date header
-  or sent_at. A later forward of an older noon report does not win.
-  Null if no position report exists.
+  or sent_at. Null if no position report exists.
 - Do not fill duration seconds or demurrage.
 """
 

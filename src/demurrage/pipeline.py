@@ -17,6 +17,7 @@ from pydantic import ValidationError
 from demurrage.answer import build_voyage_answer, render_brief
 from demurrage.classify import extract
 from demurrage.fleet import UnknownVoyage, emails_for_voyage_no, find_voyage
+from demurrage.llm import cost_summary
 from demurrage.models import (
     EmailExtraction,
     EmailReview,
@@ -318,13 +319,17 @@ def main() -> None:
     sub.add_parser("check", help="Validate saved outputs against each other")
 
     args = parser.parse_args()
-    if args.command == "batch":
-        run_batch()
-    elif args.command == "live":
-        run_live(args.email_paths)
-    elif args.command == "answer":
-        run_answer(args.email, args.answer)
-    elif args.command == "report":
-        run_report(args.voyage)
-    elif run_check():
-        raise SystemExit(1)
+    try:
+        if args.command == "batch":
+            run_batch()
+        elif args.command == "live":
+            run_live(args.email_paths)
+        elif args.command == "answer":
+            run_answer(args.email, args.answer)
+        elif args.command == "report":
+            run_report(args.voyage)
+        elif run_check():
+            raise SystemExit(1)
+    finally:
+        if text := cost_summary():
+            print(text)

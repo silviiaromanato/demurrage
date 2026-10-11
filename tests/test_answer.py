@@ -173,9 +173,7 @@ def test_resolve_calls_contract_then_laytime(monkeypatch, voyage, make_extractio
         sof = laytime_email.source_id
         cotonou = skeleton.port_visits[2].model_copy(
             update={
-                "arrival_written": WrittenTime(
-                    value="2026-02-15T16:20", basis="local"
-                ),
+                "arrival_written": WrittenTime(value="2026-02-15T16:20", basis="local"),
                 "evidence": [EvidenceRef(source_id=sof, first_line=6, last_line=6)],
             }
         )
@@ -224,10 +222,12 @@ def test_resolve_calls_contract_then_laytime(monkeypatch, voyage, make_extractio
         contract_email.source_id
     ]
     assert contract_payload["emails"][0]["body_lines"][12].startswith("13| LAYTIME")
-    assert "do not deduct shifting" in laytime_system.lower()
+    assert "or null if none applies" in laytime_system.lower()
+    assert "counts in full" in laytime_system.lower()
+    assert "do not deduct shifting" not in laytime_system.lower()
     assert "reported_at" in laytime_system
     assert "sent_at" in laytime_system
-    assert "all times utc" in laytime_system.lower()
+    assert "15/1630" in laytime_system
     assert "basis utc" in laytime_system.lower()
     laytime_payload = json.loads(laytime_user)
     assert [e["source_id"] for e in laytime_payload["emails"]] == [

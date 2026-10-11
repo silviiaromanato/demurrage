@@ -539,10 +539,10 @@ berth counts in full (it is not deducted):
 |---|---:|
 | Emails assessed | 19 |
 | Antwerp used laytime | 38.0 h |
-| Cotonou used laytime | 98.0 h |
-| Total used laytime | 136.0 h |
-| Excess laytime | 64.0 h |
-| Demurrage amount | USD 68,000.00 |
+| Cotonou used laytime | 95.5 h |
+| Total used laytime | 131.5 h |
+| Excess laytime | 61.5 h |
+| Demurrage amount | USD 65,343.75 |
 | Answer status | final |
 
 ## 10. Evaluation
