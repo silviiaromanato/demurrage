@@ -80,9 +80,7 @@ def write_outputs() -> VoyageAnswer:
     voyage_extractions = extractions_for_active_voyage(extractions, fleet)
     if active:
         resolved = resolve(active[1], voyage_extractions)
-        require(
-            "resolve", validate_resolved(resolved, active[1], voyage_extractions)
-        )
+        require("resolve", validate_resolved(resolved, active[1], voyage_extractions))
     else:
         resolved = ResolvedVoyageCore(
             contract=ContractTerms(status="missing"),

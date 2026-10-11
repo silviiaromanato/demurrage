@@ -9,10 +9,10 @@ from demurrage.calculate import (
     compute_demurrage,
     pick_latest_position,
 )
-from demurrage.emails import NOT_OUR_VESSEL
 from demurrage.models import (
     EmailAssessment,
     EmailExtraction,
+    Relevance,
     ResolvedVoyageCore,
     ReviewItem,
     VoyageAnswer,
@@ -27,11 +27,48 @@ def find_active_voyage(fleet: dict[str, Any]) -> tuple[dict, dict] | None:
     return None
 
 
-def resolved_vessel(e: EmailExtraction) -> str | None:
-    r = e.review
-    if r and r.status == "answered" and r.code == "VESSEL_UNCERTAIN":
-        return None if r.answer == NOT_OUR_VESSEL else r.answer
-    return e.vessel_name
+def active_vessel_name(fleet: dict[str, Any]) -> str | None:
+    active = find_active_voyage(fleet)
+    if active is None:
+        return None
+    return str(active[0].get("name", "")) or None
+
+
+def derive_relevance(e: EmailExtraction, fleet: dict[str, Any]) -> Relevance:
+    if e.extraction_status != "complete":
+        return e.relevance
+    if e.voyage_about == "no":
+        return "not_relevant"
+    if e.voyage_about == "uncertain":
+        return "uncertain"
+    if e.vessel_name is None:
+        return "uncertain"
+    active = active_vessel_name(fleet)
+    if active is None:
+        return "uncertain"
+    if e.vessel_name == active:
+        return "relevant"
+    fleet_names = {v["name"] for v in fleet.get("vessels", [])}
+    if e.vessel_name in fleet_names:
+        return "not_relevant"
+    return "uncertain"
+
+
+def finalize_extraction(e: EmailExtraction, fleet: dict[str, Any]) -> EmailExtraction:
+    relevance = derive_relevance(e, fleet)
+    if e.relevance == relevance:
+        return e
+    return e.model_copy(update={"relevance": relevance})
+
+
+def extractions_for_active_voyage(
+    extractions: list[EmailExtraction], fleet: dict[str, Any]
+) -> list[EmailExtraction]:
+    return [
+        finalize_extraction(e, fleet)
+        for e in extractions
+        if derive_relevance(e, fleet) == "relevant"
+    ]
 
 
 def build_voyage_answer(
@@ -115,8 +152,7 @@ def build_voyage_answer(
         EmailAssessment(
             source_id=e.source_id,
             subject=e.subject,
-            vessel_name=resolved_vessel(e),
-            voyage_no=e.voyage_no,
+            vessel_name=e.vessel_name,
             relevance=e.relevance,
             affects_schedule=e.affects_schedule,
             affects_laytime=e.affects_laytime,
@@ -124,7 +160,7 @@ def build_voyage_answer(
             reason=(
                 "Pending LLM extraction."
                 if e.extraction_status == "pending"
-                else "Extracted."
+                else f"Classified: about a voyage = {e.voyage_about}."
             ),
         )
         for e in extractions
@@ -134,7 +170,8 @@ def build_voyage_answer(
     port_visits = resolved.port_visits
     laytime_ports = apply_laytime_durations(contract, resolved.laytime_by_cargo_port)
     demurrage = compute_demurrage(contract, laytime_ports)
-    position = pick_latest_position(extractions)
+    voyage_extractions = extractions_for_active_voyage(extractions, fleet)
+    position = pick_latest_position(voyage_extractions)
     blocked = any(r.severity == "blocker" for r in review_items)
     if active is not None and not blocked:
         summary = summary.model_copy(update={"status": demurrage.status})

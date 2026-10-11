@@ -1,24 +1,15 @@
-"""Voyage resolver: one LLM call returns contract, port visits, and laytime."""
+"""Voyage resolver: planned itinerary now; a generative model comes later."""
 
 from __future__ import annotations
 
-import json
 from typing import Any
 
-from demurrage import llm
 from demurrage.models import (
     CargoPortLaytime,
     ContractTerms,
     EmailExtraction,
     PortVisit,
     ResolvedVoyageCore,
-)
-
-RESOLVER_SYSTEM = (
-    "From these email extractions and the planned itinerary, return the effective "
-    "contract, the actual port visits, and laytime events per cargo port. Cite "
-    "evidence quotes from the facts. Leave all *_duration_seconds null. Ask a "
-    "question instead of guessing between equal-authority sources."
 )
 
 
@@ -52,14 +43,5 @@ def itinerary_skeleton(voyage: dict[str, Any]) -> ResolvedVoyageCore:
 def resolve(
     voyage: dict[str, Any], extractions: list[EmailExtraction]
 ) -> ResolvedVoyageCore:
-    """One LLM call per voyage rebuild."""
-    skeleton = itinerary_skeleton(voyage)
-    if not llm.is_configured():
-        return skeleton
-    user = json.dumps(
-        {
-            "itinerary": skeleton.model_dump(include={"port_visits"}),
-            "extractions": [e.model_dump() for e in extractions],
-        }
-    )
-    return llm.structured_call(RESOLVER_SYSTEM, user, ResolvedVoyageCore)
+    """Jev only answers choice questions; the resolver still uses the itinerary."""
+    return itinerary_skeleton(voyage)

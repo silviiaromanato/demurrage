@@ -86,5 +86,5 @@ def compute_demurrage(
 
 
 def pick_latest_position(extractions: list[EmailExtraction]) -> LatestPosition | None:
-    """Latest supported position from `position_facts` (not implemented yet)."""
+    """Latest supported position (filled in the resolver step; not yet)."""
     return None
